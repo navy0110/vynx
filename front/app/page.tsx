@@ -1,272 +1,134 @@
-
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { useDisconnect, useModal, usePhantom } from "@phantom/react-sdk";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { motion } from "framer-motion";
-import { useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { useModal, usePhantom, useAccounts, useDisconnect } from "@phantom/react-sdk";
+
+const creators = [
+  { username: "LunaSol", title: "Model • Content Creator", followers: "43.2K", views: "1.2M+", earned: "$57,340", img: "/asset-lunasol.png" },
+  { username: "CryptoCoach", title: "Coach • Educator", followers: "21k", views: "800K+", earned: "$8,920", img: "/asset-cryptocoach.png" },
+  { username: "ArtByMaria", title: "Digital Artist", followers: "15k", views: "500K+", earned: "$5,210", img: "/asset-artbymaria.png" },
+  { username: "FitnessRox", title: "Trainer", followers: "12k", views: "300K+", earned: "$6,340", img: "/asset-fitnessrox.png" },
+];
+
+const steps = [
+  { number: "01", title: "Create your account", desc: "Connect your Solana wallet", icon: "/personalcard.svg" },
+  { number: "02", title: "Customize your card", desc: "Photos, bio, colors and sections", icon: "/brush.svg" },
+  { number: "03", title: "Add what you sell", desc: "Subscriptions, calls and packs", icon: "/gift.svg" },
+  { number: "04", title: "Share your link", desc: "Publish on X, Instagram and TikTok", icon: "/send.svg" },
+];
+
+const features = [
+  { icon: "/flash.svg", title: "Instant Payments", desc: "Get paid in USDC or SOL directly to your wallet." },
+  { icon: "/heart-add.svg", title: "Subscriptions", desc: "Turn your audience into predictable recurring revenue." },
+  { icon: "/gift.svg", title: "Digital Store", desc: "Sell packs, videos, PDFs and courses with automatic delivery." },
+  { icon: "/send-2.svg", title: "Viral Blinks", desc: "Turn every offer into a shareable Solana Blink." },
+  { icon: "/verify.svg", title: "Gated Access", desc: "Unlock private content with NFTs or on-chain verification." },
+  { icon: "/wallet-money.svg", title: "Tips", desc: "Let your biggest fans support you in one click." },
+];
+
+const sectionReveal = {
+  initial: { opacity: 0, y: 28 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true, amount: 0.2 },
+};
 
 export default function Home() {
   const router = useRouter();
   const { open } = useModal();
   const { isConnected } = usePhantom();
-  const addresses = useAccounts();
   const { disconnect } = useDisconnect();
-  const creators = useMemo(() => [
-    {
-      username: "LunaSol",
-      title: "Model • Content Creator",
-      followers: "43.2K",
-      views: "1.2M+",
-      earned: "$57,340",
-      img: "/asset-lunasol.png",
-    },
-    {
-      username: "CryptoCoach",
-      title: "Coach • Educator",
-      followers: "21k",
-      views: "800K+",
-      earned: "$8,920",
-      img: "/asset-cryptocoach.png",
-    },
-    {
-      username: "ArtByMaria",
-      title: "Digital Artist",
-      followers: "15k",
-      views: "500K+",
-      earned: "$5,210",
-      img: "/asset-artbymaria.png",
-    },
-    {
-      username: "FitnessRox",
-      title: "Trainer",
-      followers: "12k",
-      views: "300K+",
-      earned: "$6,340",
-      img: "/asset-fitnessrox.png",
-    },
-  ], []);
 
+  const focusAlias = () => {
+    const aliasInput = document.getElementById("alias");
+    aliasInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+    aliasInput?.focus({ preventScroll: true });
+  };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#3b0149] to-[#000] text-white font-sans">
-      {/* Navbar */}
-      <nav className="absolute flex items-center justify-between px-4 md:px-8 py-6 w-full mx-auto z-30">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="VYNX Logo" width={40} height={40} />
-        </div>
-        <div className="hidden md:flex gap-8 text-lg font-medium">
-          <a href="#how-it-works" className="hover:text-[#6B4EFF] transition">How it works</a>
-          <a href="#creators" className="hover:text-[#6B4EFF] transition">Creators</a>
-          <a href="#features" className="hover:text-[#6B4EFF] transition">Features</a>
-        </div>
-        <div className="flex gap-2 items-center">
-          {!isConnected ? (
-            <Button className="bg-transparent text-white border border-white/20 rounded-md px-6 py-5 font-semibold shadow-lg cursor-pointer text-sm" onClick={open}>
-              CONNECT
-            </Button>
-          ) : (
-            <div className="flex gap-2 items-center">
-              <span className="text-xs md:text-small text-white/10">{addresses?.[0]?.address}</span>
-              <Button variant="outline" onClick={() => disconnect()} className="cursor-pointer px-3 py-5 bg-transparent hover:bg-transparent border border-white/20">
-                <Image src="/logout.svg" alt="Disconnect" width={20} height={20} />
-              </Button>
-            </div>
-          )}
-          <Button
-            className="cursor-pointer bg-[#00F5A0] text-[#000000] rounded-md px-4 md:px-6 py-5 font-semibold hover:bg-[#6B4EFF] transition text-sm"
-            onClick={() => {
-              const aliasInput = document.getElementById("alias");
-              aliasInput?.scrollIntoView({ behavior: "smooth", block: "center" });
-              aliasInput?.focus({ preventScroll: true });
-            }}
-          >
-            GET CARD
-          </Button>
+    <main className="min-h-screen overflow-hidden bg-[#070308] text-white selection:bg-[#00F5A0] selection:text-black">
+      <nav className="absolute inset-x-0 top-0 z-40 px-5 py-5 sm:px-8 lg:px-12">
+        <div className="mx-auto flex max-w-[1480px] items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3 backdrop-blur-xl sm:px-6">
+          <a href="#top" aria-label="VYNX home" className="transition-transform hover:scale-110">
+            <Image src="/logo.png" alt="VYNX" width={42} height={42} priority />
+          </a>
+          <div className="hidden items-center gap-9 text-sm font-semibold text-white/70 md:flex">
+            <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
+            <a href="#creators" className="transition-colors hover:text-white">Creators</a>
+            <a href="#features" className="transition-colors hover:text-white">Features</a>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {isConnected ? (
+              <button type="button" onClick={() => disconnect()} title="Disconnect wallet" className="flex h-10 items-center gap-2 rounded-xl border border-[#00F5A0]/25 bg-[#00F5A0]/10 px-3 text-xs font-bold uppercase tracking-[0.14em] text-[#00F5A0] transition hover:border-[#00F5A0]/60 hover:bg-[#00F5A0]/15 sm:px-4">
+                <span className="size-2 rounded-full bg-[#00F5A0] shadow-[0_0_12px_#00F5A0]" /> Connected
+              </button>
+            ) : (
+              <Button onClick={open} className="h-10 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-bold tracking-wide text-white hover:bg-white/10 sm:px-6">CONNECT</Button>
+            )}
+            <Button onClick={focusAlias} className="h-10 rounded-xl bg-[#00F5A0] px-4 text-xs font-black tracking-wide text-black shadow-[0_0_30px_rgba(0,245,160,0.18)] hover:bg-white sm:px-6">GET CARD</Button>
+          </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative flex flex-col md:flex-row items-center justify-between gap-12 py-30 px-4 md:px-8 w-full h-auto overflow-hidden">
-        {/* Background image */}
-        <Image
-          src="/hero-bg.png"
-          alt=""
-          fill
-          priority
-          className="object-cover object-center z-0 opacity-20"
-        />
-        {/* Left: Titles and CTA */}
-        <div className="flex-1 flex flex-col items-start justify-center text-left pl-0 md:pl-36 z-1 min-w-0">
-          <span className="uppercase tracking-widest text-sm font-semibold mb-4 text-[#A259FF]">The Creator Card of the New Era</span>
-          <h1 className="heading-font text-3xl md:text-5xl font-black leading-px-6">
-            YOUR SPACE.<br />
-            YOUR AUDIENCE.<br />
-            <span className="bg-gradient-to-r from-[#00F5A0] to-[#6B4EFF] bg-clip-text text-transparent">YOUR RULES.</span>
-          </h1>
-          <p className="text-lg md:text-xl text-zinc-200 mt-4 mb-8 max-w-lg">
-            Sell subscriptions, appointments, video calls, and digital content directly, instantly, and with low fees.
-          </p>
-          <form
-            className="flex flex-col sm:flex-row gap-2 mb-8 w-full"
-            onSubmit={e => {
-              e.preventDefault();
-              const form = e.target as HTMLFormElement;
-              const alias = (form.elements.namedItem('alias') as HTMLInputElement)?.value.trim();
-              if (alias) {
-                if (isConnected) {
-                  router.push(`/profile/buy-alias?alias=${encodeURIComponent(alias)}`);
-                } else {
-                  router.push(`/auth/callback?alias=${encodeURIComponent(alias)}`);
-                }
-              }
-            }}
-          >
-            <input
-              type="text"
-              id="alias"
-              name="alias"
-              required
-              minLength={3}
-              maxLength={32}
-              placeholder="Claim your @alias"
-              className="flex-1 rounded-md px-6 py-4 text-lg font-semibold shadow-xl border border-white/20 focus:border-white/50 focus:ring-0 outline-none text-white bg-blur placeholder-zinc-400 transition"
-              autoComplete="off"
-            />
-            <Button
-              type="submit"
-              className="cursor-pointer h-16 bg-[#00F5A0] hover:bg-[#ffffff] px-6 py-4 text-black font-bold rounded-md text-sm shadow-xl transition"
-            >
-              GET IT
-            </Button>
-          </form>
-          <div className="flex flex-wrap gap-6 items-center text-zinc-300 text-base mt-4">
-            <span className="flex items-center gap-2"><Image src="/people.svg" alt="Creators" width={20} height={20} /> 2,400 Active Creators</span>
-            <span className="flex items-center gap-2"><Image src="/wallet-money.svg" alt="Earnings" width={20} height={20} /> 180k+ USDC Paid this month</span>
-            <span className="flex items-center gap-2"><Image src="/solana-sol.svg" alt="Solana" width={20} height={20} /> Powered by Solana</span>
-          </div>
-        </div>
-        {/* Right: Hero Card Image */}
-        <div className="flex-1 flex items-center justify-center w-full z-10">
-          <Image
-            src="/hero-card-asset.png"
-            alt="Creator Card Preview"
-            width={420}
-            height={520}
-            priority
-            style={{ width: "auto", height: "auto" }}
-          />
+      <section id="top" className="relative flex min-h-[100svh] items-center overflow-hidden px-5 pb-14 pt-32 sm:px-8 lg:px-12 lg:pb-8 lg:pt-28">
+        <Image src="/hero-bg.png" alt="" fill priority sizes="100vw" className="object-cover object-center opacity-35" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_44%,rgba(107,78,255,0.2),transparent_34%),linear-gradient(90deg,rgba(8,2,10,0.96)_0%,rgba(31,1,39,0.68)_48%,rgba(0,0,0,0.2)_100%)]" />
+        <motion.div aria-hidden="true" className="absolute left-[8%] top-[24%] size-48 rounded-full bg-[#6B4EFF]/20 blur-[100px]" animate={{ scale: [1, 1.3, 1], opacity: [0.35, 0.7, 0.35] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} />
+
+        <div className="relative z-10 mx-auto grid w-full max-w-[1480px] items-center gap-12 lg:grid-cols-[1.04fr_0.96fr] xl:gap-20">
+          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7 }} className="max-w-4xl">
+            <div className="mb-6 flex items-center gap-3 text-xs font-black uppercase tracking-[0.28em] text-[#b98aff] sm:text-sm"><span className="h-px w-10 bg-[#b98aff]" />The creator card of the new era</div>
+            <h1 className="heading-font text-[clamp(3.25rem,5.5vw,6.8rem)] font-black leading-[0.86] tracking-[-0.055em]">
+              <span className="block whitespace-nowrap">YOUR SPACE.</span>
+              <span className="block whitespace-nowrap">YOUR AUDIENCE.</span>
+              <span className="block whitespace-nowrap bg-linear-to-r from-[#00F5A0] via-[#35D9E6] to-[#8D5CFF] bg-clip-text text-transparent">YOUR RULES.</span>
+            </h1>
+            <p className="mt-7 max-w-2xl text-lg leading-relaxed text-white/70 sm:text-xl lg:text-2xl">Turn your audience into a business. Sell access, time and digital products directly—with no platform in the middle.</p>
+
+            <form className="mt-9 flex max-w-2xl flex-col gap-3 rounded-2xl border border-white/15 bg-black/35 p-2 backdrop-blur-xl sm:flex-row" onSubmit={(event) => {
+              event.preventDefault();
+              const alias = (event.currentTarget.elements.namedItem("alias") as HTMLInputElement)?.value.trim();
+              if (alias) router.push(`${isConnected ? "/profile/buy-alias" : "/auth/callback"}?alias=${encodeURIComponent(alias)}`);
+            }}>
+              <div className="flex min-w-0 flex-1 items-center px-4"><span className="mr-2 text-xl font-bold text-white/30">@</span><input id="alias" name="alias" type="text" required minLength={3} maxLength={32} placeholder="youralias" autoComplete="off" aria-label="Claim your alias" className="h-14 min-w-0 flex-1 bg-transparent text-lg font-bold text-white outline-none placeholder:text-white/30" /></div>
+              <Button type="submit" className="h-14 rounded-xl bg-[#00F5A0] px-8 text-sm font-black tracking-wide text-black transition hover:scale-[1.02] hover:bg-white">CLAIM YOUR CARD →</Button>
+            </form>
+            <div className="mt-7 flex flex-wrap gap-x-7 gap-y-3 text-sm font-medium text-white/55 sm:text-base">
+              <span className="flex items-center gap-2"><Image src="/people.svg" alt="" width={18} height={18} /> 2,400 creators</span>
+              <span className="flex items-center gap-2"><Image src="/wallet-money.svg" alt="" width={18} height={18} /> 180k+ USDC paid</span>
+              <span className="flex items-center gap-2"><Image src="/solana-sol.svg" alt="" width={18} height={18} /> Powered by Solana</span>
+            </div>
+          </motion.div>
+
+          <motion.div className="relative mx-auto w-full max-w-[620px] lg:justify-self-end" initial={{ opacity: 0, scale: 0.86, rotate: 3 }} animate={{ opacity: 1, scale: 1, rotate: 0, y: [0, -14, 0] }} transition={{ opacity: { duration: 0.8 }, scale: { duration: 0.8 }, rotate: { duration: 0.8 }, y: { duration: 5, repeat: Infinity, ease: "easeInOut" } }} whileHover={{ scale: 1.025, rotate: -1.5 }}>
+            <div className="absolute inset-[8%] rounded-[4rem] bg-[#bd3cff]/35 blur-[80px]" />
+            <motion.div aria-hidden="true" className="absolute -left-2 top-[19%] z-20 rounded-full border border-white/15 bg-black/55 px-4 py-2 text-xs font-bold text-white/80 shadow-xl backdrop-blur-xl sm:left-2 sm:text-sm" animate={{ x: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>⚡ Paid instantly</motion.div>
+            <Image src="/hero-card-asset.png" alt="VYNX creator card preview" width={620} height={768} priority className="relative z-10 mx-auto h-auto max-h-[calc(100svh-10rem)] w-auto max-w-full drop-shadow-[0_35px_70px_rgba(0,0,0,0.55)]" />
+          </motion.div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-20 px-4 max-w-5xl mx-auto" id="how-it-works">
-        <motion.h2 className="heading-font text-3xl md:text-4xl font-bold mb-12 text-center" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>Have your store ready in 3 minutes</motion.h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {[
-            { title: "Create your account", desc: "With your Solana wallet", icon: "/personalcard.svg" },
-            { title: "Customize your Card", desc: "Photos, bio, colors, sections", icon: "/brush.svg" },
-            { title: "Add what you sell", desc: "Subscriptions, video calls, packs", icon: "/gift.svg" },
-            { title: "Share your link", desc: "On X, Instagram, TikTok...", icon: "/send.svg" },
-          ].map((step, i) => (
-            <motion.div key={i} className="flex flex-col text-center items-center bg-[#121212]/80 rounded-2xl p-8 shadow-lg backdrop-blur-md"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-            >
-              {step.icon.startsWith("/") ? (
-                <Image src={step.icon} alt={step.title} width={40} height={40} className="mb-4" />
-              ) : (
-                <span className="text-4xl mb-4">{step.icon}</span>
-              )}
-              <h3 className="heading-font text-xl mt-4 font-semibold mb-2 text-[#6B4EFF]">{step.title}</h3>
-              <p className="text-zinc-300 text-center">{step.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      <section id="how-it-works" className="px-5 py-24 sm:px-8 lg:px-12 lg:py-32"><div className="mx-auto max-w-[1480px]">
+        <motion.div {...sectionReveal} transition={{ duration: 0.6 }} className="mb-14 flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="mb-3 text-sm font-black uppercase tracking-[0.25em] text-[#00F5A0]">Zero friction</p><h2 className="heading-font max-w-4xl text-4xl leading-[0.95] sm:text-6xl lg:text-7xl">LIVE IN THREE MINUTES.</h2></div><p className="max-w-md text-lg leading-relaxed text-white/55">From wallet to storefront in four simple moves. No code, no gatekeepers.</p></motion.div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{steps.map((step, index) => <motion.article key={step.title} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.5, delay: index * 0.08 }} whileHover={{ y: -8 }} className="group relative min-h-72 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] p-7 transition-colors hover:border-[#6B4EFF]/60 hover:bg-[#6B4EFF]/10"><span className="absolute right-5 top-3 heading-font text-7xl text-white/[0.035] transition-colors group-hover:text-[#6B4EFF]/15">{step.number}</span><div className="mb-14 flex size-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5 transition-transform group-hover:rotate-6 group-hover:scale-110"><Image src={step.icon} alt="" width={28} height={28} /></div><h3 className="heading-font text-2xl leading-tight">{step.title}</h3><p className="mt-3 text-base leading-relaxed text-white/50">{step.desc}</p></motion.article>)}</div>
+      </div></section>
 
-      {/* Creator Cards Examples */}
-      <section className="py-20 px-4 max-w-full mx-auto" id="creators">
-        <motion.h2 className="heading-font text-3xl md:text-4xl font-bold mb-12 text-center" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>Creator Cards already earning income</motion.h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
-          {creators.map((c, i) => (
-            <motion.div
-              key={c.username}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-              className="text-white hover:scale-105 transition-transform cursor-pointer"
-            >
-              <Card className="rounded-2xl bg-transparent shadow-xl p-0 flex flex-col items-center overflow-hidden">
-                <CardContent className="flex flex-col items-center p-0 w-full">
-                  <div className="relative w-full aspect-3/4">
-                    <Image
-                      src={c.img}
-                      alt={c.username}
-                      fill
-                      sizes="(min-width: 768px) 25vw, (min-width: 640px) 50vw, 100vw"
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex flex-col items-center px-4 pb-4 pt-3 w-full">
-                  <h3 className="heading-font text-xl text-white font-bold mb-1">@{c.username}</h3>
-                  <p className="text-zinc-300 mb-2 text-center">{c.title}</p>
-                  <div className="flex gap-3 text-sm text-zinc-400 mb-2">
-                    <span className="flex items-center gap-1"><Image src="/people.svg" alt="followers" width={14} height={14} /> {c.followers}</span>
-                    <span>•</span>
-                    <span><Image src="/eye.svg" height={10} width={10} alt="" /> {c.views}</span>
-                  </div>
-                  <span className="text-[#00F5A0] font-bold text-lg">{c.earned}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      <section id="creators" className="border-y border-white/8 bg-white/[0.018] px-5 py-24 sm:px-8 lg:px-12 lg:py-32"><div className="mx-auto max-w-[1480px]">
+        <motion.div {...sectionReveal} transition={{ duration: 0.6 }} className="mb-14 text-center"><p className="mb-3 text-sm font-black uppercase tracking-[0.25em] text-[#b98aff]">Made for every creator</p><h2 className="heading-font text-4xl leading-[0.95] sm:text-6xl lg:text-7xl">CARDS THAT CONVERT.</h2></motion.div>
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">{creators.map((creator, index) => <motion.div key={creator.username} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.15 }} transition={{ duration: 0.5, delay: index * 0.08 }} whileHover={{ y: -10 }}><Card className="group overflow-hidden rounded-3xl border-white/10 bg-[#100c12] p-0 shadow-2xl transition-colors hover:border-[#00F5A0]/35"><CardContent className="p-0"><div className="relative aspect-[4/5] overflow-hidden"><Image src={creator.img} alt={creator.username} fill sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition duration-700 group-hover:scale-105" /><div className="absolute inset-0 bg-linear-to-t from-[#100c12] via-transparent to-transparent" /><span className="absolute right-4 top-4 rounded-full border border-[#00F5A0]/45 bg-black/70 px-3 py-1 text-xs font-bold text-[#00F5A0] shadow-[0_0_18px_rgba(0,245,160,0.16)] backdrop-blur-md">{creator.views} views</span></div><div className="relative -mt-8 p-6 pt-0"><h3 className="heading-font text-2xl text-white">@{creator.username}</h3><p className="mt-1 text-sm text-white/50">{creator.title}</p><div className="mt-5 flex items-end justify-between border-t border-white/10 pt-4"><span className="text-sm text-white/45">{creator.followers} followers</span><span className="text-lg font-black text-[#00F5A0]">{creator.earned}</span></div></div></CardContent></Card></motion.div>)}</div>
+      </div></section>
 
-      {/* Features Grid */}
-      <section className="py-20 px-4 max-w-6xl mx-auto" id="features">
-        <motion.h2 className="heading-font text-3xl md:text-4xl font-bold mb-12 text-center" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>Everything you need in one page</motion.h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { icon: "/flash.svg", title: "Instant Payments", desc: "Get paid in USDC or SOL instantly to your wallet." },
-            { icon: "/heart-add.svg", title: "Subscriptions", desc: "Recurring payments with Streamflow." },
-            { icon: "/gift.svg", title: "Digital Store", desc: "Sell packs, videos, PDFs, etc. Automatic delivery." },
-            { icon: "/send-2.svg", title: "Viral Blinks", desc: "Every button generates a Blink to share on X." },
-            { icon: "/verify.svg", title: "Gated Access", desc: "NFTs or on-chain verification for private content." },
-            { icon: "/wallet-money.svg", title: "Tips", desc: "Receive instant tips from your fans." },
-          ].map((f, i) => (
-            <motion.div key={f.title} className="flex flex-col items-center bg-[#121212]/80 rounded-2xl p-8 shadow-lg backdrop-blur-md"
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-            >
-              <Image src={f.icon} alt={f.title} width={40} height={40} className="mb-4" />
-              <h3 className="heading-font text-xl font-semibold mb-2 text-[#00F5A0]">{f.title}</h3>
-              <p className="text-zinc-300 text-center">{f.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      <section id="features" className="px-5 py-24 sm:px-8 lg:px-12 lg:py-32"><div className="mx-auto max-w-[1480px]">
+        <motion.div {...sectionReveal} transition={{ duration: 0.6 }} className="mb-14 max-w-5xl"><p className="mb-3 text-sm font-black uppercase tracking-[0.25em] text-[#00F5A0]">One link. Every revenue stream.</p><h2 className="heading-font text-4xl leading-[0.95] sm:text-6xl lg:text-7xl">EVERYTHING YOU SELL, IN ONE PLACE.</h2></motion.div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{features.map((feature, index) => <motion.article key={feature.title} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.45, delay: index * 0.06 }} whileHover={{ scale: 1.015 }} className="group flex min-h-56 flex-col justify-between rounded-3xl border border-white/10 bg-linear-to-br from-white/[0.055] to-transparent p-7 transition-colors hover:border-[#00F5A0]/35"><div className="flex size-12 items-center justify-center rounded-xl bg-white/5 transition-colors group-hover:bg-[#00F5A0]/10"><Image src={feature.icon} alt="" width={27} height={27} /></div><div><h3 className="heading-font text-2xl">{feature.title}</h3><p className="mt-2 max-w-sm leading-relaxed text-white/50">{feature.desc}</p></div></motion.article>)}</div>
+      </div></section>
 
-      {/* Footer / Trust signals */}
-      <footer className="py-12 px-4 text-center text-zinc-400 text-sm">
-        <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-4">
-          <span>© {new Date().getFullYear()} VYNX</span>
-          <span className="hidden md:inline">|</span>
-          <span>Your space. Your audience. Your rules.</span>
-          <span className="hidden md:inline">|</span>
-          <span>Built on <span className="text-[#00F5A0] font-bold">Solana</span></span>
-        </div>
-        <div>
-          <a href="https://github.com/zuyux/vynx" target="_blank" rel="noopener noreferrer" className="hover:text-[#6B4EFF]">GitHub</a>
-        </div>
-      </footer>
-    </div>
+      <section className="px-5 pb-8 sm:px-8 lg:px-12"><motion.div {...sectionReveal} transition={{ duration: 0.6 }} className="relative mx-auto max-w-[1480px] overflow-hidden rounded-[2rem] border border-white/10 bg-linear-to-r from-[#42104f] to-[#17102f] px-7 py-16 text-center sm:px-12 lg:py-24"><div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,rgba(0,245,160,0.2),transparent_45%)]" /><div className="relative"><p className="mb-4 text-sm font-black uppercase tracking-[0.25em] text-[#00F5A0]">Your audience is waiting</p><h2 className="heading-font mx-auto max-w-5xl text-5xl leading-[0.9] sm:text-7xl lg:text-8xl">OWN YOUR NEXT MOVE.</h2><Button onClick={focusAlias} className="mt-9 h-14 rounded-xl bg-[#00F5A0] px-9 text-sm font-black tracking-wide text-black hover:scale-105 hover:bg-white">CLAIM YOUR CARD →</Button></div></motion.div></section>
+
+      <footer className="px-5 py-10 text-sm text-white/40 sm:px-8 lg:px-12"><div className="mx-auto flex max-w-[1480px] flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row"><span>© {new Date().getFullYear()} VYNX — Your space. Your audience. Your rules.</span><a href="https://github.com/zuyux/vynx" target="_blank" rel="noopener noreferrer" className="font-bold transition-colors hover:text-[#00F5A0]">GitHub ↗</a></div></footer>
+    </main>
   );
 }
