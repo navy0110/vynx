@@ -6,15 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useMemo } from "react";
-import { useModal, usePhantom, useAccounts, useDisconnect, useSolana } from "@phantom/react-sdk";
+import { useRouter } from "next/navigation";
+import { useModal, usePhantom, useAccounts, useDisconnect } from "@phantom/react-sdk";
 
 export default function Home() {
+  const router = useRouter();
   const { open } = useModal();
-  const { isConnected, isLoading } = usePhantom();
+  const { isConnected } = usePhantom();
   const addresses = useAccounts();
   const { disconnect } = useDisconnect();
-  const { solana } = useSolana();
-
   const creators = useMemo(() => [
     {
       username: "LunaSol",
@@ -51,20 +51,17 @@ export default function Home() {
   ], []);
 
 
-  if (isLoading) return <p>Loading...</p>;
-
   return (
     <div className="min-h-screen bg-linear-to-br from-[#3b0149] to-[#000] text-white font-sans">
       {/* Navbar */}
-      <nav className="absolute flex items-center justify-between px-8 py-6 w-full mx-auto z-30">
+      <nav className="absolute flex items-center justify-between px-4 md:px-8 py-6 w-full mx-auto z-30">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="VYNX Logo" width={40} height={40} />
         </div>
         <div className="hidden md:flex gap-8 text-lg font-medium">
+          <a href="#how-it-works" className="hover:text-[#6B4EFF] transition">How it works</a>
           <a href="#creators" className="hover:text-[#6B4EFF] transition">Creators</a>
-          <a href="#fans" className="hover:text-[#6B4EFF] transition">Fans</a>
-          <a href="#features" className="hover:text-[#6B4EFF] transition">Pricing</a>
-          <a href="#examples" className="hover:text-[#6B4EFF] transition">Reviews</a>
+          <a href="#features" className="hover:text-[#6B4EFF] transition">Features</a>
         </div>
         <div className="flex gap-2 items-center">
           {!isConnected ? (
@@ -79,12 +76,21 @@ export default function Home() {
               </Button>
             </div>
           )}
-          <Button className="cursor-pointer bg-[#00F5A0] text-[#000000] rounded-md px-6 py-5 font-semibold hover:bg-[#6B4EFF] transition text-sm">GET CARD</Button>
+          <Button
+            className="cursor-pointer bg-[#00F5A0] text-[#000000] rounded-md px-4 md:px-6 py-5 font-semibold hover:bg-[#6B4EFF] transition text-sm"
+            onClick={() => {
+              const aliasInput = document.getElementById("alias");
+              aliasInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+              aliasInput?.focus({ preventScroll: true });
+            }}
+          >
+            GET CARD
+          </Button>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative flex flex-col md:flex-row items-center justify-between gap-12 py-30 px-8 w-full h-auto">
+      <section className="relative flex flex-col md:flex-row items-center justify-between gap-12 py-30 px-4 md:px-8 w-full h-auto overflow-hidden">
         {/* Background image */}
         <Image
           src="/hero-bg.png"
@@ -94,7 +100,7 @@ export default function Home() {
           className="object-cover object-center z-0 opacity-20"
         />
         {/* Left: Titles and CTA */}
-        <div className="flex-1 flex flex-col items-start justify-center text-left pl-36 z-1">
+        <div className="flex-1 flex flex-col items-start justify-center text-left pl-0 md:pl-36 z-1 min-w-0">
           <span className="uppercase tracking-widest text-sm font-semibold mb-4 text-[#A259FF]">The Creator Card of the New Era</span>
           <h1 className="heading-font text-3xl md:text-5xl font-black leading-px-6">
             YOUR SPACE.<br />
@@ -112,15 +118,16 @@ export default function Home() {
               const alias = (form.elements.namedItem('alias') as HTMLInputElement)?.value.trim();
               if (alias) {
                 if (isConnected) {
-                  window.location.href = `/profile/buy-alias?alias=${encodeURIComponent(alias)}`;
+                  router.push(`/profile/buy-alias?alias=${encodeURIComponent(alias)}`);
                 } else {
-                  window.location.href = `/auth/callback?alias=${encodeURIComponent(alias)}`;
+                  router.push(`/auth/callback?alias=${encodeURIComponent(alias)}`);
                 }
               }
             }}
           >
             <input
               type="text"
+              id="alias"
               name="alias"
               required
               minLength={3}
@@ -150,13 +157,13 @@ export default function Home() {
             width={420}
             height={520}
             priority
-            style={{ height: "auto" }}
+            style={{ width: "auto", height: "auto" }}
           />
         </div>
       </section>
 
       {/* How it works */}
-      <section className="py-20 px-4 max-w-5xl mx-auto" id="features">
+      <section className="py-20 px-4 max-w-5xl mx-auto" id="how-it-works">
         <motion.h2 className="heading-font text-3xl md:text-4xl font-bold mb-12 text-center" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>Have your store ready in 3 minutes</motion.h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {[
@@ -183,7 +190,7 @@ export default function Home() {
       </section>
 
       {/* Creator Cards Examples */}
-      <section className="py-20 px-4 max-w-full mx-auto" id="examples">
+      <section className="py-20 px-4 max-w-full mx-auto" id="creators">
         <motion.h2 className="heading-font text-3xl md:text-4xl font-bold mb-12 text-center" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>Creator Cards already earning income</motion.h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
           {creators.map((c, i) => (
@@ -197,7 +204,13 @@ export default function Home() {
               <Card className="rounded-2xl bg-transparent shadow-xl p-0 flex flex-col items-center overflow-hidden">
                 <CardContent className="flex flex-col items-center p-0 w-full">
                   <div className="relative w-full aspect-3/4">
-                    <Image src={c.img} alt={c.username} fill className="object-cover" />
+                    <Image
+                      src={c.img}
+                      alt={c.username}
+                      fill
+                      sizes="(min-width: 768px) 25vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
                   </div>
                   <div className="flex flex-col items-center px-4 pb-4 pt-3 w-full">
                   <h3 className="heading-font text-xl text-white font-bold mb-1">@{c.username}</h3>

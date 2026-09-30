@@ -60,6 +60,7 @@ target/deploy/*-keypair.json
 
 # -- Secrets / Environment -----------------------------------------------------
 .env*
+!front/.env.example
 *.pem
 *.key
 

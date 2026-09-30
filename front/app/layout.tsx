@@ -1,6 +1,7 @@
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 
@@ -40,18 +41,23 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <script dangerouslySetInnerHTML={{
-          __html: `if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js');
-            });
-          }`
-        }} />
       </head>
       <body className="min-h-full flex flex-col">
         <Providers>
           {children}
         </Providers>
+        <Script id="service-worker" strategy="afterInteractive">
+          {process.env.NODE_ENV === "production"
+            ? `if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+              }`
+            : `if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then((registrations) => {
+                  registrations.forEach((registration) => registration.unregister());
+                });
+                caches.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
+              }`}
+        </Script>
       </body>
     </html>
   );

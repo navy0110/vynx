@@ -4,18 +4,21 @@ import { PhantomProvider, darkTheme } from "@phantom/react-sdk";
 import { AddressType } from "@phantom/browser-sdk";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const appId = process.env.NEXT_PUBLIC_PHANTOM_APP_ID;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
   return (
     <PhantomProvider
       config={{
-        providers: ["google", "apple", "injected"],
-        appId: "your-app-id", // TODO: Replace with your real appId from phantom.com/portal
+        providers: appId ? ["google", "apple", "injected"] : ["injected"],
+        appId,
         addressTypes: [AddressType.solana],
         authOptions: {
-          redirectUrl: "https://yourapp.com/auth/callback",
+          redirectUrl: `${appUrl}/auth/callback`,
         },
       }}
       theme={darkTheme}
-      appName="Your App"
+      appName="VYNX"
     >
       {children}
     </PhantomProvider>

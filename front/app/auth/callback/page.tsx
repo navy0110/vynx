@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ConnectBox, usePhantom } from "@phantom/react-sdk";
 
-export default function AuthCallback() {
+function AuthCallbackContent() {
   const { isConnected } = usePhantom();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,5 +24,13 @@ export default function AuthCallback() {
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
       <ConnectBox />
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useState, useCallback } from "react";
+import { Suspense, useState, useCallback } from "react";
 import { useSolana, usePhantom, useModal, useAccounts } from "@phantom/react-sdk";
 import {
   PublicKey,
@@ -29,7 +29,7 @@ const STEP_LABELS: Record<Step, string> = {
   error: "",
 };
 
-export default function BuyAliasPage() {
+function BuyAliasContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const alias = searchParams.get("alias") ?? "";
@@ -172,5 +172,13 @@ export default function BuyAliasPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function BuyAliasPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black" />}>
+      <BuyAliasContent />
+    </Suspense>
   );
 }

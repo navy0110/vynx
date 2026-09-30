@@ -45,7 +45,7 @@ cd vynx
 ### Frontend
 
 ```bash
-cd frontend
+cd front
 cp .env.example .env.local
 npm install
 npm run dev

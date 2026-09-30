@@ -84,8 +84,7 @@ export async function POST(request: NextRequest) {
   const senderPubkey = new PublicKey(account);
   const treasuryPubkey = new PublicKey(treasury);
 
-  const { blockhash, lastValidBlockHeight } =
-    await connection.getLatestBlockhash("confirmed");
+  const { blockhash } = await connection.getLatestBlockhash("confirmed");
 
   const tx = new Transaction();
   tx.recentBlockhash = blockhash;
