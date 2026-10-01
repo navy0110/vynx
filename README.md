@@ -1,142 +1,82 @@
-# <img src="https://raw.githubusercontent.com/zuyux/vynx/refs/heads/main/front/public/logo.png" alt="VYNX Logo" width="240" style="margin-bottom: 1rem;" />
 # VYNX
 
-**The ultimate Solana-native Creator Card platform.**
+VYNX is a Solana creator-card application. The current MVP lets creators connect a Phantom wallet, claim an alias, publish a profile, and receive SOL tips.
 
-A beautiful, powerful and fully decentralized Linktree + OnlyFans + Gumroad built on Solana. Creators get their own personal page where fans can subscribe, book video calls, buy digital content, and tip — all through lightning-fast Solana Blinks.
+> **Network:** the MVP supports **Solana devnet only**. Do not use a mainnet wallet RPC or fund the treasury with production SOL.
 
----
+## Current stack
 
-## ✨ Features
+- Next.js 16 App Router, React 19, and TypeScript
+- Tailwind CSS 4, shadcn/ui primitives, and Framer Motion
+- Phantom React SDK (`@phantom/react-sdk` and `@phantom/browser-sdk`)
+- Solana Web3.js
+- Supabase Postgres and SSR helpers
+- Vercel deployment
 
-- **Creator Cards** — Personal pages (`vynx.me/@username`) with full customization
-- **Subscriptions** — Recurring payments powered by Streamflow
-- **Book Video Calls** — Paid appointments with instant Blink checkout
-- **Digital Store** — Sell photos, videos, packs, presets, courses, etc.
-- **Instant Tips** — One-click tipping via Blinks
-- **Gated Access** — NFT-based or subscription-gated content
-- **Viral Blinks** — Every product, subscription and booking slot has a shareable Solana Action
-- **Wallet-first experience** — No emails, no passwords, no Stripe
+Supabase is the authoritative source of alias ownership for the MVP. A claim uses a devnet SOL transfer whose server-verified signature is stored with the unique wallet/alias record. The earlier Anchor prototype has been removed; it is available in Git history if on-chain alias ownership is reconsidered after the MVP.
 
----
+## Prerequisites
 
-## 🛠 Tech Stack
+- Node.js 20.9 or newer
+- npm 10 or newer
+- A Supabase project
+- A Phantom Portal app ID
+- A Solana devnet RPC URL and a devnet treasury wallet
 
-- **Frontend** — Next.js 15 (App Router) + TypeScript + Tailwind CSS
-- **UI** — shadcn/ui + Framer Motion
-- **Blockchain** — Solana + Anchor
-- **Blinks & Actions** — Solana Actions + Dialect
-- **Payments** — Streamflow (subscriptions) + Native SOL/USDC transfers
-- **Database** — Supabase (Postgres)
-- **Storage** — Shadow Drive + Arweave
-- **NFTs** — Metaplex Core
-- **Video Calls** — Solchat + Daily.co integration
-- **Authentication** — Solana Wallet Adapter
+## Local setup
 
----
-
-## 🚀 Quick Start
+The web application lives in `front/`.
 
 ```bash
 git clone https://github.com/zuyux/vynx.git
-cd vynx
+cd vynx/front
+cp .env.example .env.local
+npm ci
 ```
 
-### Frontend
+Fill every value in `.env.local` using the comments in `.env.example`, then run:
 
 ```bash
-cd front
-cp .env.example .env.local
-npm install
 npm run dev
 ```
 
-### Smart Contracts (Anchor)
+Open [http://localhost:3000](http://localhost:3000). Configuration is validated before Next.js starts; a missing, placeholder, malformed, or known non-devnet value produces a list of actionable errors.
+
+Never commit `.env.local`. `SUPABASE_SECRET_KEY` is server-only and deliberately does not use the `NEXT_PUBLIC_` prefix. Values prefixed with `NEXT_PUBLIC_` are bundled into browser code and must not contain secrets.
+
+## Validation
+
+Run the same frontend checks used by CI:
 
 ```bash
-cd programs/vynx
-anchor build
-anchor test
+cd front
+npm run check
 ```
 
----
+This runs environment validation, ESLint, TypeScript, unit tests, and a production build. Pull requests run the same stages in GitHub Actions.
 
-## 📁 Project Structure
+## Repository structure
 
-```
+```text
 vynx/
-├── frontend/              # Next.js application
-├── programs/              # Anchor Solana programs
-├── packages/              # Shared utilities & SDK
-├── actions/               # Solana Actions & Blinks
-└── docs/
+├── front/                         # Next.js application
+│   ├── app/                       # App Router pages and route handlers
+│   ├── components/                # Shared React components
+│   ├── lib/                       # Supabase and shared utilities
+│   ├── scripts/                   # Environment validation
+│   └── supabase/migrations/       # Database schema migrations
+├── docs/                          # Architecture decisions
+└── DEVROAD.MD                     # MVP delivery roadmap
 ```
 
----
+## Database setup
 
-## ✨ Core Philosophy
+Apply the SQL migrations in `front/supabase/migrations/` to the configured Supabase project in filename order. The current migration creates `public.cards_users` and its read policy.
 
-- **Creator-first**: Maximum revenue (near 95-98% goes to creators)
-- **Mobile & Social native**: Designed to go viral on X, Telegram and Instagram
-- **Composability**: Everything is built as reusable Solana Actions
-- **Ownership**: Fans can own access as NFTs
+## Product scope
 
----
-
-## Roadmap
-
-### MVP (Current)
-- Creator profile & customizable card
-- Digital product sales via Blinks
-- Subscription system (Streamflow)
-- Booking system for video calls
-- Basic analytics
-
-### V2
-- Advanced creator dashboard
-- Tiered memberships with benefits
-- Community features
-- Affiliate system
-- Mobile app (Solana Mobile Stack)
-
-### V3
-- Full decentralized storage
-- On-chain escrow for high-value bookings
-- Creator token launches
-- AI-powered recommendation system
-
----
-
-## Contributing
-
-We welcome contributions! Feel free to open issues or submit PRs.
-
-1. Fork the repo
-2. Create a feature branch
-3. Commit your changes
-4. Open a Pull Request
-
----
-
-## Authors
-
-- **@anthozg** — Developer, Product & Design
-- **@fabohax** — Lead Developer
-
----
+See [DEVROAD.MD](DEVROAD.MD) for the MVP milestones and deferred features. Subscriptions, bookings, product delivery, token gating, and mainnet support are not part of the current MVP.
 
 ## License
 
-This project is licensed under the **GNU AGPLv3** — see [LICENSE](LICENSE) for details.
-
----
-
-## Links
-
-- Website: [vynx.me](https://vynx.me)
-- X / Twitter: [@vynx_sol](https://x.com/vynxme)
-
----
-
-**Built with open ❤️**
-```
+GNU AGPLv3. See `LICENSE` when present in the distribution.
