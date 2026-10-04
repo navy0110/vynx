@@ -56,6 +56,7 @@ export default function Home() {
             <Image src="/logo.png" alt="VYNX" width={42} height={42} priority />
           </a>
           <div className="hidden items-center gap-9 text-sm font-semibold text-white/70 md:flex">
+            <a href="/dashboard/sponsorships" className="transition-colors hover:text-white">Patrocinios</a>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
             <a href="#creators" className="transition-colors hover:text-white">Creators</a>
             <a href="#features" className="transition-colors hover:text-white">Features</a>

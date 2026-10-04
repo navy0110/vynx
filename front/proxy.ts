@@ -1,7 +1,11 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function proxy(request: NextRequest) {
+  // Sponsorships use signed wallet challenges, independently of Supabase Auth cookies.
+  if (request.nextUrl.pathname === '/api/sponsorships' || request.nextUrl.pathname.startsWith('/creators/') || request.nextUrl.pathname === '/dashboard/sponsorships') {
+    return NextResponse.next({ request });
+  }
   return updateSession(request);
 }
 
