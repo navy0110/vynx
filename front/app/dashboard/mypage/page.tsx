@@ -1,306 +1,162 @@
 "use client";
-import { useState, useRef } from "react";
-import Image from "next/image";
-import { Sidebar } from "@/components/Sidebar";
 
-const TABS = ["Profile", "Appearance", "Links", "Socials", "Settings"];
+import Image from 'next/image';
+import Link from 'next/link';
+import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpRight, Check, Eye, ImagePlus, Link2, Monitor, Plus, Save, Smartphone, Trash2, UserRound } from 'lucide-react';
+import { Sidebar } from '@/components/Sidebar';
+import { DRAFT_KEY, EMPTY_DRAFT, draftFromProfile, readDraft, safeLink, validateDraft, type CreatorDraft } from '@/lib/creator-draft';
+import { useSponsorshipWallet } from '@/lib/use-sponsorship-wallet';
+import SponsorshipWalletControl from '@/components/SponsorshipWalletControl';
 
-const MONETIZATION = [
-  { icon: "🔔", label: "Subscribe", sub: "Weekly exclusive content", color: "bg-[#3d1f6e]" },
-  { icon: "📅", label: "Book a Call", sub: "1:1 video call", color: "bg-[#1a2a50]" },
-  { icon: "🛍️", label: "Digital Store", sub: "Photos, videos & more", color: "bg-[#3d1229]" },
-  { icon: "💖", label: "Tip Me", sub: "Support my work", color: "bg-[#3d1229]" },
-];
+const subscribe = () => () => {};
+const field = 'mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#00F5A0]';
+const secondary = 'inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 transition hover:bg-white/5 disabled:opacity-40';
+const accents = { mint: '#00F5A0', violet: '#b69aff', rose: '#ff94b9' };
+const tabs = ['Perfil', 'Apariencia', 'Enlaces', 'Redes'] as const;
+
+function initialDraft() {
+  try { return { draft: readDraft(localStorage.getItem(DRAFT_KEY)), error: '' }; }
+  catch { return { draft: structuredClone(EMPTY_DRAFT), error: 'No se pudo recuperar el borrador. Puedes editar uno nuevo; el guardado anterior se conserva hasta que guardes.' }; }
+}
 
 export default function MyPagePage() {
-  const [activeTab, setActiveTab] = useState("Profile");
-  const [username, setUsername] = useState("anthozg");
-  const [displayName, setDisplayName] = useState("Anthozg");
-  const [bio, setBio] = useState(
-    "Digital creator on Solana.\nContent, calls, subscriptions & more.\nAll powered by Solana ⚡"
-  );
-  const [profileImg, setProfileImg] = useState<string | null>(null);
-  const [bannerImg, setBannerImg] = useState<string | null>(null);
-  const profileInputRef = useRef<HTMLInputElement>(null);
-  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const ready = useSyncExternalStore(subscribe, () => true, () => false);
+  return <div className="min-h-screen bg-[#07070a] text-white"><Sidebar /><main className="min-w-0 px-5 py-7 sm:px-8 lg:ml-64 lg:px-10 lg:py-9">{ready ? <CreatorEditor /> : <p role="status" className="text-zinc-400">Cargando tu editor…</p>}</main></div>;
+}
 
-  const handleProfileImg = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setProfileImg(URL.createObjectURL(file));
-  };
+function CreatorEditor() {
+  const { wallet, signed } = useSponsorshipWallet();
+  const [remote, setRemote] = useState<{wallet:string;draft:CreatorDraft | null} | null>(null);
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [initial] = useState(initialDraft);
+  const [draft, setDraft] = useState(initial.draft);
+  const [saved, setSaved] = useState(initial.draft);
+  const [tab, setTab] = useState<typeof tabs[number]>('Perfil');
+  const [notice, setNotice] = useState(initial.error);
+  const [failed, setFailed] = useState(!!initial.error);
+  const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
+  const [imageBusy, setImageBusy] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const uploads = useRef<Record<'avatar' | 'cover', number>>({ avatar: 0, cover: 0 });
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const accent = accents[draft.accent];
+  const remoteCurrent = !!wallet && remote?.wallet === wallet;
+  const remoteDesign = remoteCurrent ? remote.draft : null;
+  const walletRef = useRef(wallet);
+  useEffect(() => { walletRef.current = wallet; }, [wallet]);
 
-  const handleBannerImg = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) setBannerImg(URL.createObjectURL(file));
-  };
+  async function loadPublished() {
+    setRemoteBusy(true); setNotice(''); setFailed(false);
+    try {
+      const result = await signed('list');
+      if (walletRef.current !== wallet) throw new Error('La wallet cambió. Carga el perfil de la cuenta actual.');
+      const profile = result.profile;
+      const design = profile ? draftFromProfile(profile) : null;
+      setRemote({wallet,draft:design});
+      setNotice(design ? 'Perfil cargado. Puedes traer su diseño al editor o publicar tu borrador actual.' : 'Aún no tienes una oferta publicada. Créala en Patrocinios antes de publicar el diseño.');
+    } catch (reason) { setFailed(true); setNotice(reason instanceof Error ? reason.message : 'No se pudo cargar tu perfil.'); }
+    finally { setRemoteBusy(false); }
+  }
 
-  return (
-    <div className="min-h-screen flex text-white font-sans" style={{ background: "#050507" }}>
-      <Sidebar />
+  async function publish() {
+    const error = validateDraft(draft);
+    if (error) { setFailed(true); setNotice(error); return; }
+    if (!remoteCurrent || !remoteDesign) return;
+    setRemoteBusy(true); setNotice(''); setFailed(false);
+    try {
+      const result = await signed('save-design', draft);
+      if (walletRef.current !== wallet) throw new Error('La wallet cambió. La publicación se autorizó con la cuenta anterior; carga su perfil para comprobarla.');
+      const published = readDraft(JSON.stringify(result.profile.design));
+      setRemote({wallet,draft:published}); setDraft(published);
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(published)); setSaved(published); }
+      catch { setNotice('Diseño publicado. No se pudo guardar el respaldo local; puedes recuperarlo desde tu perfil.'); return; }
+      setNotice('Diseño publicado. Tu página pública ya muestra tus imágenes, enlaces y apariencia.');
+    } catch (reason) { setFailed(true); setNotice(reason instanceof Error ? reason.message : 'No se pudo publicar. Tu borrador se conserva.'); }
+    finally { setRemoteBusy(false); }
+  }
 
-      {/* Main + Preview */}
-      <div className="flex flex-1 ml-64 min-h-screen">
-        {/* ── Main Content ── */}
-        <main className="flex-1 flex flex-col overflow-y-auto" style={{ background: "#07070A" }}>
-          {/* Top Header */}
-          <div className="flex items-center justify-between px-8 pt-8 pb-6 border-b border-white/5">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">My Page</h1>
-              <p className="text-zinc-500 text-sm mt-1">
-                Customize your creator page and manage your profile.
-              </p>
-            </div>
-            <button
-              className="flex items-center gap-2 text-white text-sm font-semibold rounded-xl px-5 py-3 transition"
-              style={{
-                background: "linear-gradient(135deg,#6B4EFF,#9F5CFF)",
-              }}
-            >
-              <span className="text-green-300">✓</span> Save Changes
-            </button>
-          </div>
+  useEffect(() => {
+    if (!dirty) return;
+    function warn(event: BeforeUnloadEvent) { event.preventDefault(); event.returnValue = ''; }
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
-          {/* Tabs */}
-          <div className="flex gap-8 px-8 pt-5 border-b border-white/5">
-            {TABS.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`pb-4 text-sm font-medium transition-all relative ${
-                  activeTab === tab ? "text-white" : "text-zinc-500 hover:text-zinc-300"
-                }`}
-              >
-                {tab}
-                {activeTab === tab && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#6B4EFF] rounded-full" />
-                )}
-              </button>
-            ))}
-          </div>
+  function update<K extends keyof CreatorDraft>(key: K, value: CreatorDraft[K]) {
+    setDraft(previous => ({ ...previous, [key]: value })); setNotice('');
+  }
+  function save() {
+    const normalized = { ...draft, name: draft.name.trim(), bio: draft.bio.trim(), links: draft.links.map(link => ({ ...link, title: link.title.trim(), url: link.url.trim() })), socials: Object.fromEntries(Object.entries(draft.socials).map(([key, value]) => [key, value.trim()])) as CreatorDraft['socials'] };
+    const error = validateDraft(normalized);
+    if (error) { setFailed(true); setNotice(error); return; }
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(normalized)); setDraft(normalized); setSaved(normalized); setFailed(false); setNotice('Borrador guardado en este navegador. Tu página pública todavía no se modificó.'); }
+    catch { setFailed(true); setNotice('No se pudo guardar. El almacenamiento puede estar lleno o bloqueado. Tus cambios siguen en el editor; prueba con imágenes más pequeñas.'); }
+  }
+  async function upload(event: ChangeEvent<HTMLInputElement>, key: 'avatar' | 'cover') {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 1024 * 1024) {
+      setFailed(true); setNotice('Selecciona un archivo JPG, PNG o WebP de hasta 1 MB.'); return;
+    }
+    const version = ++uploads.current[key];
+    setImageBusy(true);
+    try {
+      const bitmap = await createImageBitmap(file);
+      const tooLarge = bitmap.width > 6000 || bitmap.height > 6000;
+      bitmap.close();
+      if (tooLarge) throw new Error();
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file);
+      });
+      if (uploads.current[key] === version) { update(key, data); setFailed(false); }
+    } catch { setFailed(true); setNotice('No se pudo abrir la imagen. Usa una imagen válida de hasta 6000 píxeles por lado.'); }
+    finally { setImageBusy(false); }
+  }
+  function reorder(index: number, offset: number) {
+    const links = [...draft.links]; [links[index], links[index + offset]] = [links[index + offset], links[index]]; update('links', links);
+  }
+  function clearDraft() {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      const empty = structuredClone(EMPTY_DRAFT);
+      setDraft(empty); setSaved(empty); setConfirmReset(false); setFailed(false);
+      setNotice('Borrador local eliminado. Puedes empezar de nuevo.');
+    } catch { setFailed(true); setNotice('No se pudo eliminar el borrador guardado. Reintenta.'); }
+  }
 
-          {/* Form */}
-          <div className="px-8 py-8 flex flex-col gap-7 max-w-2xl">
-            {activeTab === "Profile" && (
-              <>
-                {/* Section title */}
-                <h2 className="text-base font-semibold text-white">Profile Information</h2>
-
-                {/* Username */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-zinc-400 font-medium">Username</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      className="flex-1 rounded-xl px-4 text-sm font-medium text-white outline-none transition placeholder-zinc-600"
-                      style={{
-                        background: "#0F1016",
-                        border: "1px solid rgba(255,255,255,.06)",
-                        height: 52,
-                      }}
-                      placeholder="yourhandle"
-                    />
-                    <span
-                      className="flex items-center gap-2 text-xs text-zinc-400 rounded-xl px-4 h-13 shrink-0"
-                      style={{
-                        background: "#0F1016",
-                        border: "1px solid rgba(255,255,255,.06)",
-                      }}
-                    >
-                      vynx.me/{username || "yourhandle"}
-                      <span className="text-green-400 text-base">✓</span>
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-600">This is your unique link on VYNX.</p>
-                </div>
-
-                {/* Display Name */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-zinc-400 font-medium">Display Name</label>
-                  <input
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    className="rounded-xl px-4 text-sm font-medium text-white outline-none transition placeholder-zinc-600"
-                    style={{
-                      background: "#0F1016",
-                      border: "1px solid rgba(255,255,255,.06)",
-                      height: 52,
-                    }}
-                    placeholder="Your Name"
-                  />
-                </div>
-
-                {/* Bio */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs text-zinc-400 font-medium">Bio</label>
-                  <div className="relative">
-                    <textarea
-                      value={bio}
-                      onChange={(e) => setBio(e.target.value)}
-                      maxLength={160}
-                      rows={4}
-                      className="w-full rounded-xl px-4 py-3 text-sm text-white outline-none transition placeholder-zinc-600 resize-none"
-                      style={{
-                        background: "#0F1016",
-                        border: "1px solid rgba(255,255,255,.06)",
-                      }}
-                      placeholder="Tell your audience about yourself..."
-                    />
-                    <span className="absolute bottom-3 right-4 text-xs text-zinc-600">
-                      {bio.length}/160
-                    </span>
-                  </div>
-                </div>
-
-                {/* Profile Image */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-zinc-400 font-medium">Profile Image</label>
-                  <div className="flex items-center gap-5">
-                    <div className="w-20 h-20 rounded-full overflow-hidden bg-zinc-800 border border-white/10 shrink-0">
-                      {profileImg ? (
-                        <Image src={profileImg} alt="profile" width={80} height={80} className="object-cover w-full h-full" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-600 text-2xl">👤</div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => profileInputRef.current?.click()}
-                        className="flex items-center gap-2 text-sm font-medium text-white rounded-xl px-4 py-2.5 transition border border-white/10 hover:border-white/20"
-                        style={{ background: "#0F1016" }}
-                      >
-                        ↑ Change Image
-                      </button>
-                      <p className="text-xs text-zinc-600">JPG, PNG or GIF. Max 5MB.</p>
-                      <input ref={profileInputRef} type="file" accept="image/*" className="hidden" onChange={handleProfileImg} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Banner Image */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-zinc-400 font-medium">Banner Image</label>
-                  <div
-                    className="w-full h-36 rounded-xl overflow-hidden flex items-end relative cursor-pointer border border-white/5"
-                    style={{
-                      background: bannerImg
-                        ? undefined
-                        : "linear-gradient(135deg,#6B4EFF 0%,#FF4EC6 100%)",
-                    }}
-                    onClick={() => bannerInputRef.current?.click()}
-                  >
-                    {bannerImg && (
-                      <Image src={bannerImg} alt="banner" fill className="object-cover" />
-                    )}
-                    <button
-                      className="relative z-10 m-4 flex items-center gap-2 text-white text-sm font-semibold rounded-xl px-4 py-2 transition"
-                      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)" }}
-                    >
-                      ↑ Change Banner
-                    </button>
-                    <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleBannerImg} />
-                  </div>
-                  <p className="text-xs text-zinc-600">Recommended: 1800x400px</p>
-                </div>
-              </>
-            )}
-
-            {activeTab !== "Profile" && (
-              <div className="flex items-center justify-center h-48 text-zinc-600 text-sm">
-                {activeTab} settings coming soon.
-              </div>
-            )}
-          </div>
-        </main>
-
-        {/* ── Preview Panel ── */}
-        <aside
-          className="w-105 shrink-0 flex flex-col border-l border-white/5 sticky top-0 h-screen overflow-y-auto"
-          style={{ background: "#07070A" }}
-        >
-          <div className="px-7 pt-8 pb-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-white">Preview</p>
-              <p className="text-xs text-zinc-500 mt-0.5">This is how your page will look.</p>
-            </div>
-            <div className="flex gap-2">
-              <button className="p-2 rounded-lg border border-white/10 hover:border-white/20 transition text-white text-sm">📱</button>
-              <button className="p-2 rounded-lg border border-white/10 hover:border-white/20 transition text-zinc-500 text-sm">🖥️</button>
-            </div>
-          </div>
-
-          {/* Phone mockup */}
-          <div className="flex-1 flex items-start justify-center px-7 pb-8">
-            <div
-              className="w-full max-w-75 rounded-3xl overflow-hidden shadow-2xl border border-white/10"
-              style={{ background: "#0d0d1a" }}
-            >
-              {/* Banner */}
-              <div
-                className="w-full h-24 relative"
-                style={{
-                  background: bannerImg
-                    ? undefined
-                    : "linear-gradient(135deg,#6B4EFF 0%,#FF4EC6 100%)",
-                }}
-              >
-                {bannerImg && <Image src={bannerImg} alt="banner" fill className="object-cover" />}
-              </div>
-
-              {/* Avatar + info */}
-              <div className="flex flex-col items-center px-5 pb-4 -mt-10">
-                <div className="w-20 h-20 rounded-full border-4 border-[#0d0d1a] overflow-hidden bg-zinc-800 mb-3">
-                  {profileImg ? (
-                    <Image src={profileImg} alt="avatar" width={80} height={80} className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-600 text-2xl">👤</div>
-                  )}
-                </div>
-                <p className="font-bold text-base text-white flex items-center gap-1">
-                  {displayName || "Your Name"}
-                  <span className="text-[#6B4EFF] text-sm">✓</span>
-                </p>
-                <p className="text-zinc-500 text-xs mb-2">@{username || "yourhandle"}</p>
-                <p className="text-zinc-400 text-xs text-center leading-relaxed whitespace-pre-line mb-3">
-                  {bio}
-                </p>
-                {/* Socials */}
-                <div className="flex gap-3 mb-4">
-                  {["𝕏", "📸", "✈️", "🔗"].map((icon, i) => (
-                    <button key={i} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-sm hover:bg-white/10 transition border border-white/5">
-                      {icon}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Monetization blocks */}
-                <div className="w-full flex flex-col gap-2">
-                  {MONETIZATION.map((m, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 rounded-xl px-4 py-3 border border-white/5 cursor-pointer hover:border-white/10 transition"
-                      style={{ background: "#121218" }}
-                    >
-                      <div className={`w-8 h-8 rounded-full ${m.color} flex items-center justify-center text-sm shrink-0`}>
-                        {m.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-xs font-semibold">{m.label}</p>
-                        <p className="text-zinc-500 text-[10px]">{m.sub}</p>
-                      </div>
-                      <span className="text-zinc-600 text-xs">›</span>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="mt-5 text-[10px] text-zinc-700">
-                  Powered by <span className="font-bold text-zinc-500">VYNX</span>
-                </p>
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
+  return <div className="mx-auto max-w-7xl">
+    <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-7"><div><p className="text-xs uppercase tracking-[.2em] text-zinc-500">Tu espacio de creador</p><h1 className="mt-2 text-2xl font-semibold">Mi página</h1><p className="mt-2 text-sm text-zinc-400">Dale tu identidad. Mira los cambios mientras editas.</p></div><div className="flex flex-wrap items-center gap-3"><span role="status" className={`text-xs ${dirty ? 'text-amber-200' : 'text-zinc-500'}`}>{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span><button onClick={save} disabled={imageBusy || remoteBusy} className="inline-flex items-center gap-2 rounded-xl bg-[#00F5A0] px-5 py-3 text-sm font-semibold text-black hover:bg-[#8affd6] disabled:opacity-40"><Save size={16} aria-hidden="true" />Guardar borrador</button></div></header>
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-400/20 bg-violet-400/5 px-4 py-3"><p className="text-xs leading-5 text-violet-200">Borrador local · se guarda solo en este navegador. El alias no se reserva y los cambios todavía no se publican.</p><Link href="/dashboard/sponsorships" className="inline-flex items-center gap-1 text-xs text-violet-300">Gestionar página pública<ArrowUpRight size={14} aria-hidden="true" /></Link></div>
+    {notice && <p role={failed ? 'alert' : 'status'} className={`mt-4 rounded-xl border p-4 text-sm ${failed ? 'border-red-400/20 text-red-200' : 'border-[#00F5A0]/20 text-emerald-200'}`}>{notice}</p>}
+    <section className="mt-5 rounded-2xl border border-white/10 bg-[#101015] p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-sm font-semibold">Publicación con tu wallet</h2><p className="mt-2 max-w-lg text-xs leading-6 text-zinc-500">Carga tu perfil para publicar en tu página. La firma autoriza el cambio y no transfiere fondos. Al publicar, el diseño y las imágenes se guardan en Supabase y quedan visibles en tu página pública.</p></div><SponsorshipWalletControl /></div><div className="mt-4 flex flex-wrap gap-3"><button disabled={!wallet || remoteBusy || imageBusy} onClick={() => void loadPublished()} className={`${secondary} disabled:opacity-40`}>{remoteBusy ? 'Procesando…' : 'Cargar mi perfil publicado'}</button>{remoteDesign && <><button disabled={remoteBusy || imageBusy || dirty} onClick={() => {setDraft(structuredClone(remoteDesign));setNotice('Diseño publicado cargado en el editor. Guarda un respaldo local o edítalo para volver a publicar.');setFailed(false);}} className={secondary}>Traer diseño al editor</button><button disabled={remoteBusy || imageBusy} onClick={() => void publish()} className="rounded-xl bg-violet-400 px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-40">Publicar diseño actual</button><Link href={`/creators/${remoteDesign.alias}`} className="inline-flex items-center gap-1 px-2 py-2 text-xs text-violet-300">Ver página pública<ArrowUpRight size={14} /></Link></>}{remoteCurrent && !remoteDesign && <Link href="/dashboard/sponsorships" className="inline-flex items-center gap-1 px-2 py-2 text-xs text-violet-300">Crear mi oferta primero<ArrowUpRight size={14} /></Link>}</div>{remoteDesign && remoteDesign.alias !== draft.alias && <p className="mt-3 text-xs leading-6 text-amber-200">Al publicar el nuevo alias cambiará tu enlace público. El enlace anterior dejará de funcionar.</p>}{remoteDesign && dirty && <p className="mt-3 text-xs text-amber-200">Guarda o descarta los cambios locales antes de traer el diseño publicado.</p>}</section>
+    <div className="mt-4 text-xs text-zinc-500">{confirmReset ? <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-400/20 p-4"><p>Se eliminarán el borrador guardado y los cambios del editor.</p><button disabled={imageBusy || remoteBusy} onClick={clearDraft} className="rounded-lg px-3 py-2 text-red-300 disabled:opacity-40">Eliminar borrador</button><button onClick={() => setConfirmReset(false)} className="rounded-lg px-3 py-2 text-zinc-300">Cancelar</button></div> : <button disabled={imageBusy || remoteBusy} onClick={() => setConfirmReset(true)} className="rounded-lg py-2 hover:text-zinc-300 disabled:opacity-40">Empezar de nuevo</button>}</div>
+    <div className="mt-7 grid min-w-0 gap-7 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <section className="min-w-0 rounded-2xl border border-white/10 bg-[#101015]">
+        <div role="group" aria-label="Secciones del editor" className="grid grid-cols-4 gap-1 border-b border-white/10 p-3">{tabs.map(item => <button key={item} aria-pressed={tab === item} onClick={() => setTab(item)} className={`rounded-lg px-1 py-3 text-xs font-medium transition sm:text-sm ${tab === item ? 'bg-[#00F5A0]/10 text-[#00F5A0]' : 'text-zinc-400 hover:bg-white/5'}`}>{item}</button>)}</div>
+        <fieldset disabled={remoteBusy} className="space-y-6 p-5 disabled:opacity-60 sm:p-7">
+          {tab === 'Perfil' && <><div><h2 className="text-lg font-semibold">La persona detrás de tu página</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Un nombre, una historia y un lugar para tu comunidad.</p></div>
+            <label className="block text-sm text-zinc-300">Alias<input value={draft.alias} maxLength={30} onChange={e => update('alias', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="tu_alias" className={field} /><span className="mt-2 block break-all text-xs text-zinc-500">Alias propuesto: @{draft.alias || 'tu_alias'} · disponibilidad pendiente</span></label>
+            <label className="block text-sm text-zinc-300">Nombre de creador<input value={draft.name} maxLength={60} onChange={e => update('name', e.target.value)} placeholder="¿Cómo te conoce tu comunidad?" className={field} /></label>
+            <label className="block text-sm text-zinc-300">Presentación<textarea value={draft.bio} maxLength={280} rows={4} onChange={e => update('bio', e.target.value)} placeholder="Cuenta qué creas y qué te inspira…" className={`${field} resize-y`} /><span className="mt-2 block text-right text-xs text-zinc-500">{draft.bio.length} / 280</span></label>
+            {(['avatar', 'cover'] as const).map(key => <div key={key} className="rounded-xl border border-white/10 p-4"><h3 className="text-sm font-medium">{key === 'avatar' ? 'Foto de perfil' : 'Portada'}</h3><div className="mt-3 flex flex-wrap items-center gap-4"><div className={`relative shrink-0 overflow-hidden bg-white/5 ${key === 'avatar' ? 'size-16 rounded-full' : 'h-16 w-28 rounded-lg'}`}>{draft[key] ? <Image src={draft[key]} alt={key === 'avatar' ? 'Foto de perfil seleccionada' : 'Portada seleccionada'} fill unoptimized sizes="112px" className="object-cover" /> : <div className="flex h-full items-center justify-center text-zinc-500"><ImagePlus size={23} aria-hidden="true" /></div>}</div><div><label className={`${secondary} cursor-pointer focus-within:outline-2 focus-within:outline-[#00F5A0]`}>Elegir imagen<input type="file" aria-label={key === 'avatar' ? 'Subir foto de perfil' : 'Subir portada'} accept="image/png,image/jpeg,image/webp" disabled={imageBusy || remoteBusy} className="sr-only" onChange={e => void upload(e, key)} /></label>{draft[key] && <button disabled={imageBusy || remoteBusy} onClick={() => update(key, '')} className="ml-3 text-xs text-zinc-400">Quitar</button>}<p className="mt-2 text-xs text-zinc-500">JPG, PNG o WebP · hasta 1 MB</p></div></div></div>)}
+          </>}
+          {tab === 'Apariencia' && <><div><h2 className="text-lg font-semibold">Una página que se sienta tuya</h2><p className="mt-2 text-sm text-zinc-500">Elige el tono de tu espacio.</p></div><fieldset><legend className="text-sm text-zinc-300">Color de acento</legend><div className="mt-3 flex flex-wrap gap-3">{(Object.keys(accents) as Array<keyof typeof accents>).map(color => <label key={color} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-sm ${draft.accent === color ? 'border-white/40' : 'border-white/10'}`}><input type="radio" name="accent" checked={draft.accent === color} onChange={() => update('accent', color)} className="sr-only peer" /><span className="size-5 rounded-full peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4" style={{background: accents[color]}} />{color === 'mint' ? 'Menta' : color === 'violet' ? 'Violeta' : 'Rosa'}{draft.accent === color && <Check size={14} aria-hidden="true" />}</label>)}</div></fieldset><fieldset><legend className="text-sm text-zinc-300">Fondo de la página</legend><div className="mt-3 grid grid-cols-2 gap-3">{(['dark','light'] as const).map(theme => <label key={theme} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 p-4 text-sm"><input type="radio" name="theme" checked={draft.theme === theme} onChange={() => update('theme', theme)} />{theme === 'dark' ? 'Oscuro' : 'Claro'}</label>)}</div></fieldset><label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4 text-sm">Botones redondeados<input type="checkbox" checked={draft.rounded} onChange={e => update('rounded', e.target.checked)} className="size-4 accent-emerald-400" /></label></>}
+          {tab === 'Enlaces' && <><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Lo que quieres compartir</h2><p className="mt-2 text-sm text-zinc-500">Hasta 8 enlaces. Elige su orden.</p></div><button disabled={draft.links.length >= 8} onClick={() => update('links', [...draft.links, {id: crypto.randomUUID(), title:'', url:''}])} className={secondary}><Plus size={16} aria-hidden="true" />Agregar enlace</button></div>{!draft.links.length && <div className="rounded-xl border border-dashed border-white/15 p-7 text-center text-sm leading-6 text-zinc-500">Tu sitio, tu último video o tu proyecto favorito.<br />Agrega tu primer enlace para verlo en la vista previa.</div>}{draft.links.map((link,index) => <div key={link.id} className="space-y-3 rounded-xl border border-white/10 p-4"><div className="flex items-center justify-between"><p className="text-xs text-zinc-500">Enlace {index + 1}</p><div className="flex gap-1">{[{label:'Subir', icon:ArrowUp, offset:-1, disabled:index === 0}, {label:'Bajar', icon:ArrowDown, offset:1, disabled:index === draft.links.length - 1}].map(({label,icon:Icon,offset,disabled}) => <button key={label} aria-label={`${label} enlace ${index + 1}`} disabled={disabled} onClick={() => reorder(index,offset)} className="rounded-lg p-2 text-zinc-400 hover:bg-white/5 disabled:opacity-25"><Icon size={16} /></button>)}<button aria-label={`Eliminar enlace ${index + 1}`} onClick={() => update('links', draft.links.filter(item => item.id !== link.id))} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={16} /></button></div></div><label className="block text-xs text-zinc-400">Título del enlace {index + 1}<input value={link.title} maxLength={60} placeholder="Mi último video" onChange={e => update('links', draft.links.map(item => item.id === link.id ? {...item,title:e.target.value} : item))} className={field} /></label><label className="block text-xs text-zinc-400">URL del enlace {index + 1}<input value={link.url} type="url" maxLength={500} placeholder="https://…" onChange={e => update('links', draft.links.map(item => item.id === link.id ? {...item,url:e.target.value} : item))} className={field} /></label></div>)}</>}
+          {tab === 'Redes' && <><div><h2 className="text-lg font-semibold">Conecta con tu comunidad</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Agrega el enlace completo de tus perfiles. Deja vacío lo que no quieras mostrar.</p></div>{(['instagram','youtube','x'] as const).map(network => <label key={network} className="block text-sm text-zinc-300">{network === 'x' ? 'X' : network === 'youtube' ? 'YouTube' : 'Instagram'}<input value={draft.socials[network]} type="url" maxLength={500} placeholder={`https://${network === 'x' ? 'x' : network}.com/tu_perfil`} onChange={e => update('socials', {...draft.socials,[network]:e.target.value})} className={field} /></label>)}</>}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5"><p className="text-xs text-zinc-500">La vista previa cambia al instante.</p><button disabled={!dirty || imageBusy} onClick={() => { uploads.current.avatar++; uploads.current.cover++; setDraft(structuredClone(saved)); setNotice('Volviste al último borrador guardado.'); setFailed(false); }} className="text-xs text-zinc-400 hover:text-white disabled:opacity-30">Descartar cambios</button></div>
+        </fieldset>
+      </section>
+      <aside className="min-w-0 self-start xl:sticky xl:top-7"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-sm font-semibold"><Eye size={16} aria-hidden="true" />Vista previa</h2><p className="mt-1 text-xs text-zinc-500">Borrador · todavía no publicado</p></div><div className="flex gap-1 rounded-lg border border-white/10 p-1"><button aria-label="Vista previa móvil" aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')} className={`rounded-md p-2 ${device === 'mobile' ? 'bg-white/10 text-white' : 'text-zinc-500'}`}><Smartphone size={16} /></button><button aria-label="Vista previa de escritorio" aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')} className={`rounded-md p-2 ${device === 'desktop' ? 'bg-white/10 text-white' : 'text-zinc-500'}`}><Monitor size={16} /></button></div></div>
+        <Link href="/dashboard/mypage/preview" target="_blank" rel="noopener noreferrer" className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-xs text-violet-300">Ver borrador guardado como página completa<ArrowUpRight size={14} /></Link>
+        {dirty && <p className="mb-4 text-center text-xs text-amber-200">Guarda tus cambios antes de abrir la página completa.</p>}
+        <div className={`mx-auto overflow-hidden rounded-3xl border border-white/15 shadow-2xl transition-[max-width] ${device === 'mobile' ? 'max-w-[340px]' : 'max-w-full'} ${draft.theme === 'dark' ? 'bg-[#101015] text-white' : 'bg-[#f5f5f7] text-zinc-900'}`}>
+          <div className="relative h-32" style={{background:`linear-gradient(135deg, ${accent}66, #3c245b)`}}>{draft.cover && <Image src={draft.cover} alt="Portada de la vista previa" fill sizes="600px" unoptimized className="object-cover" />}</div>
+          <div className="relative -mt-10 flex flex-col items-center px-6 pb-7"><div className={`relative size-20 overflow-hidden rounded-full border-4 ${draft.theme === 'dark' ? 'border-[#101015] bg-zinc-800' : 'border-[#f5f5f7] bg-zinc-200'}`}>{draft.avatar ? <Image src={draft.avatar} alt="Avatar de la vista previa" fill sizes="80px" unoptimized className="object-cover" /> : <div className="flex h-full items-center justify-center text-zinc-500"><UserRound size={30} aria-hidden="true" /></div>}</div><h3 className="mt-4 max-w-full break-words text-center text-xl font-semibold">{draft.name || 'Tu nombre de creador'}</h3><p className="mt-1 break-all text-xs opacity-50">@{draft.alias || 'tu_alias'}</p><p className="mt-4 w-full whitespace-pre-line break-words text-center text-sm leading-6 opacity-70">{draft.bio || 'Tu historia empieza aquí. Cuenta lo que te gusta crear.'}</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">{Object.entries(draft.socials).filter(([,url]) => safeLink(url)).map(([network,url]) => <a key={network} href={safeLink(url)!} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${network}`} className="rounded-full border border-current/15 px-3 py-2 text-xs opacity-70 hover:opacity-100">{network === 'x' ? 'X' : network === 'youtube' ? 'YouTube' : 'Instagram'}</a>)}</div>
+          <div className="mt-5 w-full space-y-3">{draft.links.map(link => { const url = safeLink(link.url); const content = <><Link2 size={16} aria-hidden="true" className="shrink-0" /><span className="min-w-0 flex-1 break-words text-center">{link.title || 'Título de tu enlace'}</span><ArrowUpRight size={15} aria-hidden="true" className="shrink-0" /></>; const className = `flex items-center gap-2 border px-4 py-3 text-sm font-medium ${draft.rounded ? 'rounded-2xl' : 'rounded-md'}`; return url ? <a key={link.id} href={url} target="_blank" rel="noopener noreferrer" className={className} style={{borderColor:accent+'66',background:accent+'15'}}>{content}</a> : <div key={link.id} className={`${className} opacity-40`} style={{borderColor:accent+'66'}}>{content}</div>; })}{!draft.links.length && <div className="rounded-xl border border-dashed border-current/15 p-5 text-center text-xs leading-5 opacity-40">Tus enlaces aparecerán aquí.</div>}</div><p className="mt-8 text-[10px] tracking-widest opacity-40">CREADO CON VYNX<span style={{color:accent}}>.</span></p></div>
+        </div><p className="mx-auto mt-4 max-w-sm text-center text-xs leading-5 text-zinc-500">Los enlaces HTTPS válidos se pueden abrir desde la vista previa.</p>
+      </aside>
     </div>
-  );
+  </div>;
 }

@@ -1,94 +1,24 @@
 "use client";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ArrowUpRight, House, PanelTop, Sparkles, Wallet } from "lucide-react";
+import { useSponsorshipWallet } from "@/lib/use-sponsorship-wallet";
 
-const NAV = [
-  { id: "dashboard", label: "Dashboard", icon: "🏠", href: "/dashboard" },
-  { id: "mypage", label: "My Page", icon: "/personalcard.svg", href: "/dashboard/mypage" },
-  { id: "products", label: "Products", icon: "/gift.svg", href: "/dashboard/products" },
-  { id: "subscriptions", label: "Subscriptions", icon: "/heart-add.svg", href: "/dashboard/subscriptions" },
-  { id: "bookings", label: "Bookings", icon: "/calendar.svg", href: "/dashboard/bookings" },
-  { id: "tips", label: "Tips", icon: "/wallet-money.svg", href: "/dashboard/tips" },
-  { id: "analytics", label: "Analytics", icon: "📊", href: "/dashboard/analytics" },
-  { id: "settings", label: "Settings", icon: "⚙️", href: "/dashboard/settings" },
+const navigation = [
+  { label: "Resumen", icon: House, href: "/dashboard" },
+  { label: "Mi página", icon: PanelTop, href: "/dashboard/mypage" },
+  { label: "Patrocinios", icon: Sparkles, href: "/dashboard/sponsorships" },
 ];
-
-export function Sidebar({ walletAddress = "9h7...k3Lz" }: { walletAddress?: string }) {
+export function Sidebar({ creatorAlias }: { creatorAlias?: string }) {
   const pathname = usePathname();
-
-  return (
-    <aside
-      className="w-64 flex flex-col py-8 px-5 min-h-screen fixed top-0 left-0 bottom-0 z-20"
-      style={{ background: "#07070A", borderRight: "1px solid rgba(255,255,255,0.05)" }}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-2 mb-10">
-        <Image src="/logo.png" alt="VYNX" width={80} height={32} style={{ height: "auto" }} />
-      </div>
-
-      {/* Nav */}
-      <nav className="flex flex-col gap-1 flex-1">
-        {NAV.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.id}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                isActive
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-white hover:bg-white/5"
-              }`}
-              style={
-                isActive
-                  ? {
-                      background:
-                        "linear-gradient(135deg, rgba(107,78,255,.25), rgba(255,0,255,.12))",
-                    }
-                  : {}
-              }
-            >
-              {item.icon.startsWith("/") ? (
-                <Image src={item.icon} alt={item.label} width={20} height={20} className="shrink-0 opacity-80" />
-              ) : (
-                <span className="text-base leading-none w-5 text-center">{item.icon}</span>
-              )}
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Creator URL card */}
-      <div className="mt-4 bg-white/5 rounded-xl p-4 flex flex-col gap-2 border border-white/5">
-        <p className="text-xs text-zinc-500">Your VYNX Page</p>
-        <a
-          href="#"
-          className="text-sm font-semibold text-[#6B4EFF] hover:underline flex items-center gap-1"
-        >
-          vynx.me/{walletAddress.slice(0, 6)} <span className="text-xs opacity-60">↗</span>
-        </a>
-        <p className="text-xs text-zinc-600">Share your link anywhere.</p>
-        <button className="mt-1 flex items-center gap-2 justify-center bg-[#6B4EFF] hover:bg-[#5a3edc] text-white text-xs font-semibold rounded-lg px-3 py-2 transition">
-          View My Page <span>↗</span>
-        </button>
-      </div>
-
-      {/* Wallet */}
-      <div className="mt-3 flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2.5 border border-white/5">
-        <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">
-          <Image src="/mocks/vynx-card.png" alt="avatar" width={32} height={32} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-white font-semibold truncate">anthozg</p>
-          <p className="text-xs text-zinc-500 font-mono truncate">{walletAddress}</p>
-        </div>
-        <span className="text-zinc-600 text-xs">▾</span>
-      </div>
-    </aside>
-  );
+  const { wallet } = useSponsorshipWallet();
+  return <aside className="border-b border-white/10 bg-[#09090e] px-5 py-4 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-b-0 lg:px-6 lg:py-8">
+    <div className="flex items-center justify-between lg:mb-12"><Link href="/" aria-label="Vynx, inicio" className="text-2xl font-black tracking-tight text-white">VYNX<span className="text-[#00F5A0]">.</span></Link><span className="rounded-md border border-white/10 px-2 py-1 text-[10px] uppercase tracking-widest text-zinc-400">Creator</span></div>
+    <nav aria-label="Panel del creador" className="mt-4 flex gap-2 lg:mt-0 lg:flex-col">{navigation.map(({ label, icon: Icon, href }) => {
+      const active = href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+      return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl px-2 py-3 text-xs font-medium transition focus-visible:outline-2 focus-visible:outline-[#00F5A0] sm:text-sm lg:justify-start lg:gap-3 lg:px-4 ${active ? "bg-[#00F5A0]/10 text-[#00F5A0]" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}><Icon size={18} aria-hidden="true" className="shrink-0" />{label}</Link>;
+    })}</nav>
+    <div className="mt-8 hidden px-4 lg:block"><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-zinc-500">En desarrollo</p><p className="mt-4 text-sm text-zinc-500">Productos y membresías</p></div>
+    <div className="mt-auto hidden pt-8 lg:block"><div className="rounded-2xl border border-violet-400/20 bg-gradient-to-br from-violet-500/10 to-transparent p-4"><Sparkles size={20} className="mb-3 text-violet-300" aria-hidden="true" /><p className="text-sm font-semibold text-white">Un espacio para tu marca</p><p className="mt-2 text-xs leading-5 text-zinc-400">Publica tu oferta y conecta con tu próximo patrocinador.</p><Link href={creatorAlias ? `/creators/${creatorAlias}` : "/dashboard/sponsorships"} className="mt-4 flex items-center justify-between text-xs font-semibold text-violet-300">{creatorAlias ? "Ver mi página pública" : "Crear mi oferta"}<ArrowUpRight size={16} aria-hidden="true" /></Link></div><div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-5"><Wallet size={18} className="text-zinc-400" aria-hidden="true" /><div><p className="text-xs font-medium text-white">{wallet ? "Wallet conectada" : "Tu espacio de creador"}</p><p title={wallet || undefined} className="mt-1 text-xs text-zinc-500">{wallet ? `${wallet.slice(0, 5)}…${wallet.slice(-4)}` : "Conecta para empezar"}</p></div></div></div>
+  </aside>;
 }
