@@ -31,7 +31,7 @@ The sponsorship payment service deliberately uses `https://api.devnet.solana.com
 - Public pages expose the creator receiving wallet. Brand wallets and pending requests are not returned by the public endpoint.
 - Ads are text cards on Vynx. Images, external-site embedding, auctions, impression/click billing, analytics, subscriptions and automatic social publishing are outside this first slice.
 - Before a public pilot, add distributed rate limiting, operational challenge cleanup, moderation/reporting, cancellation/refunds and end-to-end checks with the deployed database and wallets. Current per-wallet limits are basic abuse friction, not Sybil prevention.
-- The existing alias purchase flow is separate. Its legacy confirmation endpoint does not verify its payment; do not rely on it as sponsorship authorization or release it for real-money alias sales.
+- The alias purchase flow is separate and devnet-only. Its confirmation endpoint verifies a signed, successful devnet SOL transfer to the configured alias treasury before registration. Alias payments do not authorize sponsorships.
 
 ## Verification
 

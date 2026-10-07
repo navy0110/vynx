@@ -7,15 +7,10 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
-  LAMPORTS_PER_SOL,
-  Connection,
 } from "@solana/web3.js";
 
-const CLAIM_PRICE_SOL = 0.00001;
-const CLAIM_PRICE_LAMPORTS = Math.round(CLAIM_PRICE_SOL * LAMPORTS_PER_SOL);
-const RPC_URL =
-  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-  "https://rpc.ankr.com/solana";
+import { aliasConnection, CLAIM_PRICE_SOL, CLAIM_PRICE_LAMPORTS } from "@/lib/alias-network";
+
 const TREASURY = process.env.NEXT_PUBLIC_TREASURY_WALLET ?? "";
 
 type Step = "idle" | "building" | "signing" | "registering" | "done" | "error";
@@ -54,7 +49,8 @@ function BuyAliasContent() {
     setErrorMsg("");
 
     try {
-      const connection = new Connection(RPC_URL, "confirmed");
+      await solana.switchNetwork("devnet");
+      const connection = await aliasConnection();
       const { blockhash, lastValidBlockHeight } =
         await connection.getLatestBlockhash("confirmed");
 
@@ -76,6 +72,11 @@ function BuyAliasContent() {
 
       setStep("signing");
       const { signature } = await solana.signAndSendTransaction(tx);
+
+      const confirmation = await connection.confirmTransaction(
+        { signature, blockhash, lastValidBlockHeight }, "confirmed"
+      );
+      if (confirmation.value.err) throw new Error("The devnet payment failed.");
 
       setStep("registering");
       const res = await fetch(
