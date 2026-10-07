@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useDisconnect, usePhantom } from "@phantom/react-sdk";
+import { AddressType, useAccounts, useDisconnect, usePhantom } from "@phantom/react-sdk";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -40,6 +42,32 @@ export default function Home() {
   const router = useRouter();
   const { isConnected, isLoading } = usePhantom();
   const { disconnect, isDisconnecting, error: disconnectError } = useDisconnect();
+  const accounts = useAccounts();
+  const wallet = isConnected
+    ? accounts?.find(account => account.addressType === AddressType.solana)?.address ?? ""
+    : "";
+  const [card, setCard] = useState<{ wallet: string; alias: string } | null>(null);
+  const hasCard = !!wallet && card?.wallet === wallet;
+
+  useEffect(() => {
+    if (!wallet) return;
+    const controller = new AbortController();
+    fetch(`/api/profile?${new URLSearchParams({ wallet })}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async response => {
+        if (!response.ok) return;
+        const { profile } = await response.json();
+        if (!controller.signal.aborted) {
+          setCard(profile?.wallet_address === wallet ? { wallet, alias: profile.username } : null);
+        }
+      })
+      .catch(() => {
+        // Keep the claim action available if profile lookup is unavailable.
+      });
+    return () => controller.abort();
+  }, [wallet]);
 
   const handleDisconnect = async () => {
     try {
@@ -63,7 +91,7 @@ export default function Home() {
             <Image src="/logo.png" alt="VYNX" width={42} height={42} priority />
           </a>
           <div className="hidden items-center gap-9 text-sm font-semibold text-white/70 md:flex">
-            <a href="/dashboard/sponsorships" className="transition-colors hover:text-white">Patrocinios</a>
+            <Link href="/dashboard/sponsorships" className="transition-colors hover:text-white">Patrocinios</Link>
             <a href="#how-it-works" className="transition-colors hover:text-white">How it works</a>
             <a href="#creators" className="transition-colors hover:text-white">Creators</a>
             <a href="#features" className="transition-colors hover:text-white">Features</a>
@@ -80,7 +108,7 @@ export default function Home() {
               </Button>
               {disconnectError && <p role="alert" className="absolute right-0 top-full mt-2 w-56 rounded-lg bg-black/90 p-3 text-xs text-red-300">Unable to disconnect wallet. Please try again.</p>}
             </div>
-            <Button onClick={focusAlias} className="h-10 rounded-xl bg-[#00F5A0] px-4 text-xs font-black tracking-wide text-black shadow-[0_0_30px_rgba(0,245,160,0.18)] hover:bg-white sm:px-6">GET CARD</Button>
+            <Button onClick={hasCard && card ? () => router.push(`/${encodeURIComponent(card.alias)}`) : focusAlias} className="h-10 rounded-xl bg-[#00F5A0] px-4 text-xs font-black tracking-wide text-black shadow-[0_0_30px_rgba(0,245,160,0.18)] hover:bg-white sm:px-6">{hasCard ? "MY CARD" : "GET CARD"}</Button>
           </div>
         </div>
       </nav>

@@ -94,7 +94,7 @@ function BuyAliasContent() {
       }
 
       setStep("done");
-      setTimeout(() => router.push(`/profile?alias=${encodeURIComponent(alias.toLowerCase())}`), 1800);
+      setTimeout(() => router.push(`/${encodeURIComponent(alias.toLowerCase())}`), 1800);
     } catch (err: unknown) {
       setStep("error");
       setErrorMsg(err instanceof Error ? err.message : "Something went wrong");

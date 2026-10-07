@@ -145,3 +145,12 @@
     font-weight: 700;
   }
 }
+@layer base {
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    @apply cursor-pointer;
+  }
+}
