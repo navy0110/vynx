@@ -154,3 +154,23 @@
     @apply cursor-pointer;
   }
 }
+
+/* A restrained monochrome design for the public frontend proposal. */
+.landing-page {
+  color-scheme: dark;
+}
+
+.landing-page :is(a, button):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
