@@ -15,6 +15,13 @@ const validEnvironment = {
 test("accepts a complete devnet configuration", () => {
   assert.deepEqual(validateEnvironment(validEnvironment), []);
 });
+test('allows extension-only login without a Phantom Portal App ID', () => {
+  const { NEXT_PUBLIC_PHANTOM_APP_ID, ...extensionEnvironment } = validEnvironment;
+  assert.deepEqual(validateEnvironment(extensionEnvironment), []);
+  assert.deepEqual(validateEnvironment({...extensionEnvironment,NEXT_PUBLIC_PHANTOM_APP_ID:''}), []);
+  assert.deepEqual(validateEnvironment({...extensionEnvironment,NEXT_PUBLIC_PHANTOM_APP_ID:'   '}), []);
+  assert.ok(NEXT_PUBLIC_PHANTOM_APP_ID);
+});
 
 test("reports every missing required value", () => {
   const errors = validateEnvironment({});

@@ -5,7 +5,6 @@ export const REQUIRED_ENV_KEYS = [
   "NEXT_PUBLIC_TREASURY_WALLET",
   "NEXT_PUBLIC_SOLANA_RPC_URL",
   "NEXT_PUBLIC_APP_URL",
-  "NEXT_PUBLIC_PHANTOM_APP_ID",
 ];
 
 const PLACEHOLDER_PATTERN = /(^|[-_])(your|replace|example)([-_]|$)|<[^>]+>/i;
@@ -29,6 +28,10 @@ export function validateEnvironment(env) {
     } else if (PLACEHOLDER_PATTERN.test(value)) {
       errors.push(`${key} still contains an example placeholder.`);
     }
+  }
+  const phantomAppId = env.NEXT_PUBLIC_PHANTOM_APP_ID?.trim();
+  if (phantomAppId && PLACEHOLDER_PATTERN.test(phantomAppId)) {
+    errors.push('NEXT_PUBLIC_PHANTOM_APP_ID still contains an example placeholder. Leave it empty to use the Phantom extension.');
   }
 
   for (const key of [
