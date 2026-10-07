@@ -2,7 +2,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Suspense, useState, useCallback } from "react";
-import { useSolana, usePhantom, useModal, useAccounts } from "@phantom/react-sdk";
+import { AddressType, useSolana, usePhantom, useModal, useAccounts } from "@phantom/react-sdk";
 import {
   PublicKey,
   SystemProgram,
@@ -37,7 +37,7 @@ function BuyAliasContent() {
   const [step, setStep] = useState<Step>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const walletAddress = accounts?.[0]?.address ?? null;
+  const walletAddress = accounts?.find(account => account.addressType === AddressType.solana)?.address ?? null;
 
   const handleClaim = useCallback(async () => {
     if (!isConnected || !walletAddress || !solana) {
@@ -94,7 +94,7 @@ function BuyAliasContent() {
       }
 
       setStep("done");
-      setTimeout(() => router.push("/profile"), 1800);
+      setTimeout(() => router.push(`/profile?alias=${encodeURIComponent(alias.toLowerCase())}`), 1800);
     } catch (err: unknown) {
       setStep("error");
       setErrorMsg(err instanceof Error ? err.message : "Something went wrong");
