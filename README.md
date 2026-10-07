@@ -77,6 +77,17 @@ Apply the SQL migrations in `front/supabase/migrations/` to the configured Supab
 
 See [DEVROAD.MD](DEVROAD.MD) for the MVP milestones and deferred features. Subscriptions, bookings, product delivery, token gating, and mainnet support are not part of the current MVP.
 
+### Planned feature: paid video calls and verified reviews
+
+Creators will be able to offer video calls with a defined service, duration, price, and availability. Fans will reserve a slot and pay before the session, using the creator's completed-call history and verified reviews to decide whether to book.
+
+- Record attendance and session duration to verify completed calls; completion alone does not prove a satisfactory experience.
+- Allow one review per completed booking, written by the paying fan, covering punctuality, communication, and delivery of the promised service.
+- Show completed-call counts, average ratings, review counts, and review comments on the public Creator Card.
+- Define cancellation, no-show, connection-failure, refund, and dispute handling before release. Holding payment until completion is a proposed approach; the payment custody and settlement mechanism still needs to be selected.
+
+This feature is planned for after the alias-to-tip MVP is validated and is not implemented yet. See the paid video-call milestone in [DEVROAD.MD](DEVROAD.MD).
+
 ## License
 
 GNU AGPLv3. See `LICENSE` when present in the distribution.

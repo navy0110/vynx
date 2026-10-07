@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useDisconnect, useModal, usePhantom } from "@phantom/react-sdk";
+import { useDisconnect, usePhantom } from "@phantom/react-sdk";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -38,9 +38,16 @@ const sectionReveal = {
 
 export default function Home() {
   const router = useRouter();
-  const { open } = useModal();
-  const { isConnected } = usePhantom();
-  const { disconnect } = useDisconnect();
+  const { isConnected, isLoading } = usePhantom();
+  const { disconnect, isDisconnecting, error: disconnectError } = useDisconnect();
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+    } catch {
+      // The wallet SDK exposes the failure through disconnectError below.
+    }
+  };
 
   const focusAlias = () => {
     const aliasInput = document.getElementById("alias");
@@ -62,13 +69,17 @@ export default function Home() {
             <a href="#features" className="transition-colors hover:text-white">Features</a>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            {isConnected ? (
-              <button type="button" onClick={() => disconnect()} title="Disconnect wallet" className="flex h-10 items-center gap-2 rounded-xl border border-[#00F5A0]/25 bg-[#00F5A0]/10 px-3 text-xs font-bold uppercase tracking-[0.14em] text-[#00F5A0] transition hover:border-[#00F5A0]/60 hover:bg-[#00F5A0]/15 sm:px-4">
-                <span className="size-2 rounded-full bg-[#00F5A0] shadow-[0_0_12px_#00F5A0]" /> Connected
-              </button>
-            ) : (
-              <Button onClick={open} className="h-10 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-bold tracking-wide text-white hover:bg-white/10 sm:px-6">CONNECT</Button>
-            )}
+            <div className="relative">
+              <Button
+                onClick={isConnected ? handleDisconnect : () => router.push("/auth/callback")}
+                disabled={isLoading || isDisconnecting}
+                aria-label={isConnected ? "Disconnect wallet" : "Connect wallet"}
+                className="h-10 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-bold tracking-wide text-white hover:bg-white/10 sm:px-6"
+              >
+                {isDisconnecting ? "DISCONNECTING…" : isConnected ? "DISCONNECT" : "CONNECT"}
+              </Button>
+              {disconnectError && <p role="alert" className="absolute right-0 top-full mt-2 w-56 rounded-lg bg-black/90 p-3 text-xs text-red-300">Unable to disconnect wallet. Please try again.</p>}
+            </div>
             <Button onClick={focusAlias} className="h-10 rounded-xl bg-[#00F5A0] px-4 text-xs font-black tracking-wide text-black shadow-[0_0_30px_rgba(0,245,160,0.18)] hover:bg-white sm:px-6">GET CARD</Button>
           </div>
         </div>
@@ -92,7 +103,7 @@ export default function Home() {
             <form className="mt-9 flex max-w-2xl flex-col gap-3 rounded-2xl border border-white/15 bg-black/35 p-2 backdrop-blur-xl sm:flex-row" onSubmit={(event) => {
               event.preventDefault();
               const alias = (event.currentTarget.elements.namedItem("alias") as HTMLInputElement)?.value.trim();
-              if (alias) router.push(`${isConnected ? "/profile/buy-alias" : "/auth/callback"}?alias=${encodeURIComponent(alias)}`);
+              if (alias) router.push(`/auth/callback?alias=${encodeURIComponent(alias)}`);
             }}>
               <div className="flex min-w-0 flex-1 items-center px-4"><span className="mr-2 text-xl font-bold text-white/30">@</span><input id="alias" name="alias" type="text" required minLength={3} maxLength={32} placeholder="youralias" autoComplete="off" aria-label="Claim your alias" className="h-14 min-w-0 flex-1 bg-transparent text-lg font-bold text-white outline-none placeholder:text-white/30" /></div>
               <Button type="submit" className="h-14 rounded-xl bg-[#00F5A0] px-8 text-sm font-black tracking-wide text-black transition hover:scale-[1.02] hover:bg-white">CLAIM YOUR CARD →</Button>
