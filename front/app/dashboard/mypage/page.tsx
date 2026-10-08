@@ -1,4 +1,5 @@
 "use client";
+import CreatorOfferSelection from "@/components/CreatorOfferSelection";
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -13,7 +14,7 @@ const subscribe = () => () => {};
 const field = 'mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-[#00F5A0]';
 const secondary = 'inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-zinc-300 transition hover:bg-white/5 disabled:opacity-40';
 const accents = { mint: '#00F5A0', violet: '#b69aff', rose: '#ff94b9' };
-const tabs = ['Perfil', 'Apariencia', 'Enlaces', 'Redes'] as const;
+const tabs = ['Perfil', 'Apariencia', 'Enlaces', 'Redes', 'Ofertas'] as const;
 
 function initialDraft() {
   try { return { draft: readDraft(localStorage.getItem(DRAFT_KEY)), error: '' }; }
@@ -126,15 +127,18 @@ function CreatorEditor() {
   }
 
   return <div className="mx-auto max-w-7xl">
+    <Link href="/dashboard/products" className="mb-5 inline-flex items-center gap-2 rounded-xl border border-violet-400/30 bg-violet-400/10 px-4 py-3 text-sm font-medium text-violet-200">Mis productos · Tickets NFT y suscripciones<ArrowUpRight size={16} aria-hidden="true" /></Link>
     <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-7"><div><p className="text-xs uppercase tracking-[.2em] text-zinc-500">Tu espacio de creador</p><h1 className="mt-2 text-2xl font-semibold">Mi página</h1><p className="mt-2 text-sm text-zinc-400">Dale tu identidad. Mira los cambios mientras editas.</p></div><div className="flex flex-wrap items-center gap-3"><span role="status" className={`text-xs ${dirty ? 'text-amber-200' : 'text-zinc-500'}`}>{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span><button onClick={save} disabled={imageBusy || remoteBusy} className="inline-flex items-center gap-2 rounded-xl bg-[#00F5A0] px-5 py-3 text-sm font-semibold text-black hover:bg-[#8affd6] disabled:opacity-40"><Save size={16} aria-hidden="true" />Guardar borrador</button></div></header>
+
     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-400/20 bg-violet-400/5 px-4 py-3"><p className="text-xs leading-5 text-violet-200">Borrador local · se guarda solo en este navegador. El alias no se reserva y los cambios todavía no se publican.</p><Link href="/dashboard/sponsorships" className="inline-flex items-center gap-1 text-xs text-violet-300">Gestionar página pública<ArrowUpRight size={14} aria-hidden="true" /></Link></div>
     {notice && <p role={failed ? 'alert' : 'status'} className={`mt-4 rounded-xl border p-4 text-sm ${failed ? 'border-red-400/20 text-red-200' : 'border-[#00F5A0]/20 text-emerald-200'}`}>{notice}</p>}
     <section className="mt-5 rounded-2xl border border-white/10 bg-[#101015] p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-sm font-semibold">Publicación con tu wallet</h2><p className="mt-2 max-w-lg text-xs leading-6 text-zinc-500">Carga tu perfil para publicar en tu página. La firma autoriza el cambio y no transfiere fondos. Al publicar, el diseño y las imágenes se guardan en Supabase y quedan visibles en tu página pública.</p></div><SponsorshipWalletControl /></div><div className="mt-4 flex flex-wrap gap-3"><button disabled={!wallet || remoteBusy || imageBusy} onClick={() => void loadPublished()} className={`${secondary} disabled:opacity-40`}>{remoteBusy ? 'Procesando…' : 'Cargar mi perfil publicado'}</button>{remoteDesign && <><button disabled={remoteBusy || imageBusy || dirty} onClick={() => {setDraft(structuredClone(remoteDesign));setNotice('Diseño publicado cargado en el editor. Guarda un respaldo local o edítalo para volver a publicar.');setFailed(false);}} className={secondary}>Traer diseño al editor</button><button disabled={remoteBusy || imageBusy} onClick={() => void publish()} className="rounded-xl bg-violet-400 px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-40">Publicar diseño actual</button><Link href={`/creators/${remoteDesign.alias}`} className="inline-flex items-center gap-1 px-2 py-2 text-xs text-violet-300">Ver página pública<ArrowUpRight size={14} /></Link></>}{remoteCurrent && !remoteDesign && <Link href="/dashboard/sponsorships" className="inline-flex items-center gap-1 px-2 py-2 text-xs text-violet-300">Crear mi oferta primero<ArrowUpRight size={14} /></Link>}</div>{remoteDesign && remoteDesign.alias !== draft.alias && <p className="mt-3 text-xs leading-6 text-amber-200">Al publicar el nuevo alias cambiará tu enlace público. El enlace anterior dejará de funcionar.</p>}{remoteDesign && dirty && <p className="mt-3 text-xs text-amber-200">Guarda o descarta los cambios locales antes de traer el diseño publicado.</p>}</section>
     <div className="mt-4 text-xs text-zinc-500">{confirmReset ? <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-400/20 p-4"><p>Se eliminarán el borrador guardado y los cambios del editor.</p><button disabled={imageBusy || remoteBusy} onClick={clearDraft} className="rounded-lg px-3 py-2 text-red-300 disabled:opacity-40">Eliminar borrador</button><button onClick={() => setConfirmReset(false)} className="rounded-lg px-3 py-2 text-zinc-300">Cancelar</button></div> : <button disabled={imageBusy || remoteBusy} onClick={() => setConfirmReset(true)} className="rounded-lg py-2 hover:text-zinc-300 disabled:opacity-40">Empezar de nuevo</button>}</div>
     <div className="mt-7 grid min-w-0 gap-7 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <section className="min-w-0 rounded-2xl border border-white/10 bg-[#101015]">
-        <div role="group" aria-label="Secciones del editor" className="grid grid-cols-4 gap-1 border-b border-white/10 p-3">{tabs.map(item => <button key={item} aria-pressed={tab === item} onClick={() => setTab(item)} className={`rounded-lg px-1 py-3 text-xs font-medium transition sm:text-sm ${tab === item ? 'bg-[#00F5A0]/10 text-[#00F5A0]' : 'text-zinc-400 hover:bg-white/5'}`}>{item}</button>)}</div>
+        <div role="group" aria-label="Secciones del editor" className="grid grid-cols-3 gap-1 border-b sm:grid-cols-5 border-white/10 p-3">{tabs.map(item => <button key={item} aria-pressed={tab === item} onClick={() => setTab(item)} className={`rounded-lg px-1 py-3 text-xs font-medium transition sm:text-sm ${tab === item ? 'bg-[#00F5A0]/10 text-[#00F5A0]' : 'text-zinc-400 hover:bg-white/5'}`}>{item}</button>)}</div>
         <fieldset disabled={remoteBusy} className="space-y-6 p-5 disabled:opacity-60 sm:p-7">
+          {tab === 'Ofertas' && <CreatorOfferSelection />}
           {tab === 'Perfil' && <><div><h2 className="text-lg font-semibold">La persona detrás de tu página</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Un nombre, una historia y un lugar para tu comunidad.</p></div>
             <label className="block text-sm text-zinc-300">Alias<input value={draft.alias} maxLength={30} onChange={e => update('alias', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="tu_alias" className={field} /><span className="mt-2 block break-all text-xs text-zinc-500">Alias propuesto: @{draft.alias || 'tu_alias'} · disponibilidad pendiente</span></label>
             <label className="block text-sm text-zinc-300">Nombre de creador<input value={draft.name} maxLength={60} onChange={e => update('name', e.target.value)} placeholder="¿Cómo te conoce tu comunidad?" className={field} /></label>
@@ -160,3 +164,5 @@ function CreatorEditor() {
     </div>
   </div>;
 }
+
+
