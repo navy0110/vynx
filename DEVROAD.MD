@@ -39,7 +39,7 @@ The MVP is complete only when this entire journey works on production with real 
 
 - Recurring subscriptions and Streamflow
 - Digital product uploads and delivery
-- Paid bookings and video calls
+- Paid video-call bookings with upfront payment, verified completion, and verified fan reviews (Milestone 7)
 - NFT or token-gated content
 - USDC payments
 - Alias transfer and release UI
@@ -268,6 +268,33 @@ Acceptance criteria:
 
 ---
 
+## Milestone 7 — Paid video calls and verified creator reputation (after MVP)
+
+Goal: let creators sell their time and expertise while fans can assess prior completed sessions and verified reviews before paying.
+
+Start after the full alias-to-tip MVP passes end-to-end tests. The first version supports one video-call offer per creator.
+
+- [ ] **P2** Let creators define the service offered, duration, price, availability, and booking timezone.
+- [ ] **P2** Let fans choose a slot and pay before the call; verify payment server-side and prevent duplicate payments or double-booked slots.
+- [ ] **P2** Select the payment custody and settlement mechanism; evaluate holding funds until completion and define release, refund, and dispute rules before implementation.
+- [ ] **P2** Provide a private video-call link to the booked participants and select a video provider with verifiable attendance and duration events.
+- [ ] **P2** Track booking states, including awaiting payment, confirmed, completed, cancelled, no-show, and disputed; verify provider events server-side and process them idempotently.
+- [ ] **P2** Define completion criteria using both participants' attendance and session duration. Keep verified completion separate from satisfaction or performance ratings.
+- [ ] **P2** Allow only the paying fan to submit one review per completed booking, with an overall rating, comment, and feedback on punctuality, communication, and fulfillment of the offered service.
+- [ ] **P2** Show verified completed-call counts, average ratings, review counts, and comments on the public Creator Card, with an empty state for creators without history.
+- [ ] **P2** Define cancellation deadlines and handling for creator/fan no-shows, connection failures, refunds, disputes, and abusive reviews.
+- [ ] **P2** Verify booking authorization, slot conflicts, payment retries, attendance event retries, review eligibility, rating aggregation, and refund/settlement behavior with automated tests.
+
+Acceptance criteria:
+
+- A fan can inspect a creator's completed-call history and verified reviews before booking and paying.
+- A confirmed booking has exactly one verified payment and a private call link accessible only to authorized participants.
+- Only sessions meeting documented attendance criteria count as completed; completion is not labeled as proof of a successful experience.
+- Only the paying fan can review a completed booking, once; public ratings and counts derive from eligible persisted records.
+- Cancellation, no-show, failed-call, and dispute flows follow disclosed rules without duplicate settlements or refunds.
+
+---
+
 ## Suggested database additions
 
 Create these through new, numbered migrations; do not edit an already-applied migration.
@@ -278,6 +305,14 @@ Create these through new, numbered migrations; do not edit an already-applied mi
 - `social_links`: creator, platform, URL, display order
 - `alias_claims`: wallet, alias, amount, treasury, cluster, signature, verification status
 - `tips`: creator, payer, amount, currency, cluster, signature, status, timestamps
+
+After MVP, for paid video calls:
+
+- `call_offers`: creator, service description, duration, price, currency, availability, timezone
+- `call_bookings`: offer, creator, fan, scheduled start/end, status, private provider session reference
+- `call_payments`: booking, payer, amount, currency, cluster, signature, verification status, settlement/refund status
+- `call_attendance`: booking, participant, provider event ID, joined/left timestamps, verified duration
+- `call_reviews`: unique booking, paying fan, creator, overall rating, performance feedback, comment, timestamps
 
 Every payment signature must have a unique database constraint.
 
@@ -291,6 +326,7 @@ Work in vertical slices and keep production deployable after each slice:
 4. Dynamic public profile
 5. Verified SOL tip
 6. End-to-end hardening and invited-user release
+7. Paid video-call bookings, verified completion, and verified reviews
 
 Do not start subscriptions, products, or bookings until the full alias-to-tip path passes end-to-end tests.
 

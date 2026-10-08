@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+import { aliasConnection, ALIAS_BLOCKCHAIN_ID, verifyAliasPayment } from "@/lib/alias-network";
+
 const CORS = {
+  "X-Action-Version": "2.1.3",
+  "X-Blockchain-Ids": ALIAS_BLOCKCHAIN_ID,
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
@@ -24,11 +28,22 @@ export async function POST(request: NextRequest) {
   const walletAddress: string = body.account ?? "";
   const txSignature: string = body.signature ?? "";
 
-  if (!alias || !walletAddress) {
+  if (!alias || !walletAddress || !txSignature) {
     return NextResponse.json(
-      { error: "alias and account are required" },
+      { error: "alias, account and signature are required" },
       { status: 400, headers: CORS }
     );
+  }
+
+  const treasury = process.env.NEXT_PUBLIC_TREASURY_WALLET;
+  if (!treasury) return NextResponse.json({ error: "Treasury wallet not configured" }, { status: 503, headers: CORS });
+
+  try {
+    const connection = await aliasConnection();
+    const tx = await connection.getParsedTransaction(txSignature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+    verifyAliasPayment(tx, walletAddress, treasury);
+  } catch {
+    return NextResponse.json({ error: "A confirmed devnet alias payment is required. Check your network and retry." }, { status: 400, headers: CORS });
   }
 
   // Check alias is still available

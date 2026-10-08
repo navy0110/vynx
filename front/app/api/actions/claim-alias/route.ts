@@ -3,12 +3,9 @@ import {
   PublicKey,
   SystemProgram,
   Transaction,
-  LAMPORTS_PER_SOL,
-  Connection,
 } from "@solana/web3.js";
 
-const CLAIM_PRICE_SOL = 0.00001;
-const CLAIM_PRICE_LAMPORTS = Math.round(CLAIM_PRICE_SOL * LAMPORTS_PER_SOL);
+import { aliasConnection, ALIAS_BLOCKCHAIN_ID, CLAIM_PRICE_SOL, CLAIM_PRICE_LAMPORTS } from "@/lib/alias-network";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +13,7 @@ const CORS = {
   "Access-Control-Allow-Headers":
     "Content-Type, Authorization, Accept-Encoding",
   "X-Action-Version": "2.1.3",
-  "X-Blockchain-Ids": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+  "X-Blockchain-Ids": ALIAS_BLOCKCHAIN_ID,
 };
 
 export async function OPTIONS() {
@@ -76,10 +73,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const rpcUrl =
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-    "https://rpc.ankr.com/solana";
-  const connection = new Connection(rpcUrl, "confirmed");
+  let connection;
+  try {
+    connection = await aliasConnection();
+  } catch {
+    return NextResponse.json({ error: "Alias claiming requires an available Solana devnet RPC." }, { status: 503, headers: CORS });
+  }
 
   const senderPubkey = new PublicKey(account);
   const treasuryPubkey = new PublicKey(treasury);
