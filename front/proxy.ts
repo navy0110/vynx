@@ -1,16 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
-
-export async function proxy(request: NextRequest) {
-  // Sponsorships use signed wallet challenges, independently of Supabase Auth cookies.
-  if (request.nextUrl.pathname === '/api/sponsorships' || request.nextUrl.pathname.startsWith('/creators/') || request.nextUrl.pathname === '/dashboard/sponsorships') {
-    return NextResponse.next({ request });
-  }
-  return updateSession(request);
+export function proxy(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-vynx-destination', request.nextUrl.pathname + request.nextUrl.search);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
+  matcher: ['/dashboard/:path*'],
 };

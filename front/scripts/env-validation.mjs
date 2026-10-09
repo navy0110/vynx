@@ -1,6 +1,6 @@
 export const REQUIRED_ENV_KEYS = [
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_KEY",
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
   "SUPABASE_SECRET_KEY",
   "NEXT_PUBLIC_TREASURY_WALLET",
   "NEXT_PUBLIC_SOLANA_RPC_URL",
@@ -35,7 +35,7 @@ export function validateEnvironment(env) {
   }
 
   for (const key of [
-    "NEXT_PUBLIC_SUPABASE_URL",
+    "SUPABASE_URL",
     "NEXT_PUBLIC_SOLANA_RPC_URL",
     "NEXT_PUBLIC_APP_URL",
   ]) {
@@ -67,7 +67,7 @@ export function validateEnvironment(env) {
   }
 
   const leakedSecret = Object.keys(env).find(
-    (key) => key.startsWith("NEXT_PUBLIC_") && /SECRET|SERVICE_ROLE|PRIVATE_KEY/.test(key)
+    (key) => key.startsWith("NEXT_PUBLIC_") && /SUPABASE|SECRET|SERVICE_ROLE|PRIVATE_KEY/.test(key)
   );
   if (leakedSecret) {
     errors.push(`${leakedSecret} looks like a secret but uses the public NEXT_PUBLIC_ prefix.`);

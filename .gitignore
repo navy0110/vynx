@@ -68,3 +68,7 @@ target/deploy/*-keypair.json
 .vscode/
 .history/
 *.sublime*
+
+# Browser test artifacts
+front/playwright-report/
+front/test-results/

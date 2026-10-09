@@ -1,6 +1,8 @@
 import { authorize, checkout, issueChallenge, sponsorDb, verifyPayment } from '@/lib/sponsorship-server';
 import { profileFields, requestFields, text, type SponsorAction, type SponsorPayload, type SponsorRequest } from '@/lib/sponsorship-domain';
 import { publicationFields } from '@/lib/creator-draft';
+import { requireWallet } from '@/lib/wallet-session';
+import { validateClaimedAlias } from '@/lib/claimed-alias';
 
 export const runtime = 'nodejs';
 const ACTIONS: SponsorAction[] = ['save-profile', 'save-design', 'request', 'list', 'approve', 'reject', 'checkout', 'confirm'];
@@ -36,6 +38,8 @@ export async function POST(request: Request) {
     }
     const action: SponsorAction = body.action;
     if (action !== 'save-design' && raw.length > 16000) return reply({ error: 'Solicitud demasiado grande.' }, 413);
+    const sessionWallet = await requireWallet(request);
+    if (sessionWallet !== body.wallet) return reply({ error: 'La sesión pertenece a otra wallet.' }, 403);
     const payload: SponsorPayload = body.payload;
     // Validate before issuing or consuming a challenge.
     const design = action === 'save-design' ? publicationFields(payload) : null;
@@ -45,6 +49,7 @@ export async function POST(request: Request) {
     const wallet: string = body.wallet;
 
     if (action === 'save-design' && design) {
+      await validateClaimedAlias(db, wallet, design.alias);
       const { data: profile, error } = await db.from('sponsor_profiles').update({
         alias: design.alias, display_name: design.name, bio: design.bio, design,
       }).eq('wallet', wallet).select('*').maybeSingle();
@@ -55,9 +60,10 @@ export async function POST(request: Request) {
 
     if (action === 'save-profile') {
       const fields = profileFields(payload);
-      const { error } = await db.from('sponsor_profiles').upsert({ wallet, ...fields }, { onConflict: 'wallet' });
+      await validateClaimedAlias(db, wallet, fields.alias);
+      const { data: profile, error } = await db.from('sponsor_profiles').upsert({ wallet, ...fields }, { onConflict: 'wallet' }).select('*').single();
       if (error) return reply({ error: error.code === '23505' ? 'Ese alias ya tiene dueño.' : 'No se pudo guardar la oferta.' }, 409);
-      return reply({ ok: true, profile: { wallet, ...fields } });
+      return reply({ ok: true, profile });
     }
     if (action === 'list') {
       const results = await Promise.all([

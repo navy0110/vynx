@@ -1,8 +1,10 @@
 'use client';
 import { AddressType, useAccounts, useModal, useSolana } from '@phantom/react-sdk';
+import { useWalletSession } from '@/components/WalletSessionProvider';
 import type { SponsorAction, SponsorPayload } from './sponsorship-domain';
 
 export function useSponsorshipWallet() {
+  const session = useWalletSession();
   const { solana, isAvailable } = useSolana();
   const accounts = useAccounts();
   const { open } = useModal();
@@ -10,6 +12,7 @@ export function useSponsorshipWallet() {
 
   async function signed(action: SponsorAction, payload: SponsorPayload = {}) {
     if (!isAvailable || !wallet) { open(); throw new Error('Conecta tu wallet y vuelve a intentarlo.'); }
+    await session.ensureSession();
     if (solana.publicKey !== wallet) throw new Error('La cuenta de Phantom cambió. Desconecta la wallet y vuelve a conectarla para autorizar la cuenta seleccionada.');
     async function post(body: unknown) {
       const response = await fetch('/api/sponsorships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

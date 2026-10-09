@@ -6,6 +6,7 @@ import { ArrowDownLeft, ArrowUpRight, Inbox, RefreshCw, SlidersHorizontal, Spark
 import { Sidebar } from '@/components/Sidebar';
 import { Connection, Transaction } from '@solana/web3.js';
 import { useSponsorshipWallet } from '@/lib/use-sponsorship-wallet';
+import { useClaimedAlias } from '@/lib/use-claimed-alias';
 import SponsorshipWalletControl from '@/components/SponsorshipWalletControl';
 import { canReview, isLive, money, type SponsorProfile, type SponsorRequest } from '@/lib/sponsorship-domain';
 import { campaignFilters, campaignState, nextCampaignAction, type CampaignFilter } from '@/lib/sponsorship-workspace';
@@ -18,6 +19,7 @@ const statusColors = { pending: 'bg-amber-400/10 text-amber-200', approved: 'bg-
 
 export default function SponsorshipWorkspace() {
   const { wallet, solana, signed } = useSponsorshipWallet();
+  const claimed = useClaimedAlias(wallet);
   const [profile, setProfile] = useState<SponsorProfile | null>(null);
   const [campaigns, setCampaigns] = useState<SponsorRequest[]>([]);
   const [loadedWallet, setLoadedWallet] = useState('');
@@ -60,13 +62,13 @@ export default function SponsorshipWorkspace() {
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!current) {
+    if (!current || claimed.loading || claimed.error) {
       setFailed(true); setNotice('Carga tus campañas antes de editar tu oferta.');
       return;
     }
     const form = new FormData(event.currentTarget);
     void run(async () => {
-      const data = await signed('save-profile', { alias: form.get('alias'), display_name: form.get('display_name'),
+      const data = await signed('save-profile', { alias: claimed.alias || form.get('alias'), display_name: form.get('display_name'),
         bio: form.get('bio'), website: form.get('website'), price_cents: Math.round(Number(form.get('price')) * 100),
         duration_days: Number(form.get('days')), accepting: form.get('accepting') === 'on' });
       setProfile(data.profile); setLoadedWallet(wallet);
@@ -112,9 +114,10 @@ export default function SponsorshipWorkspace() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,.8fr)_minmax(0,1.4fr)]">
         <section className={`${panel} order-2 min-w-0 xl:order-none`}><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-semibold">Tu oferta</h2><SlidersHorizontal size={18} className="text-zinc-500" aria-hidden="true" /></div><p className="mt-2 text-xs leading-6 text-zinc-400">Un espacio exclusivo. Precio fijo por período. Cada anuncio requiere tu aprobación.</p>
           {visibleProfile && <div className="mt-5 rounded-xl border border-violet-400/20 bg-violet-400/5 p-4"><p className="break-all text-sm font-medium">@{visibleProfile.alias}</p><p className="mt-2 text-lg font-semibold">{money(visibleProfile.price_cents)} USDC <span className="text-xs font-normal text-zinc-500">/ {visibleProfile.duration_days} días</span></p><span className={`mt-3 inline-block rounded-full px-2 py-1 text-[10px] ${visibleProfile.accepting ? 'bg-emerald-400/10 text-emerald-200' : 'bg-amber-400/10 text-amber-200'}`}>{visibleProfile.accepting ? 'Recibe propuestas' : 'Propuestas pausadas'}</span></div>}
-          <form key={`${wallet}:${current}:${visibleProfile?.alias ?? ''}`} onSubmit={save} className="mt-6 space-y-4">
-            <fieldset disabled={busy || !current} className="space-y-4 disabled:opacity-50">
-            <label className="block text-sm text-zinc-300">Alias<input name="alias" required pattern="[a-zA-Z0-9_]{3,30}" maxLength={30} defaultValue={visibleProfile?.alias} placeholder="tu_alias" className={input} /></label>
+          {claimed.loading && <p role="status" className="mt-4 text-xs text-zinc-400">Consultando el alias de tu wallet…</p>}{claimed.error && <p role="alert" className="mt-4 text-xs text-red-200">{claimed.error} <button type="button" onClick={claimed.retry} className="underline">Reintentar</button></p>}
+          <form key={`${wallet}:${current}:${claimed.alias || visibleProfile?.alias || ''}`} onSubmit={save} className="mt-6 space-y-4">
+            <fieldset disabled={busy || !current || claimed.loading || !!claimed.error} className="space-y-4 disabled:opacity-50">
+            <label className="block text-sm text-zinc-300">Alias<input aria-label="Alias" name="alias" required pattern="[a-zA-Z0-9_]{3,30}" maxLength={30} defaultValue={claimed.alias || visibleProfile?.alias} readOnly={!!claimed.alias} placeholder="tu_alias" className={input} />{claimed.alias && <span className="mt-2 block text-xs text-[#00F5A0]">Alias comprado por tu wallet conectada.</span>}</label>
             <label className="block text-sm text-zinc-300">Nombre<input name="display_name" required maxLength={60} defaultValue={visibleProfile?.display_name} placeholder="Tu nombre como creador" className={input} /></label>
             <label className="block text-sm text-zinc-300">Presentación<textarea name="bio" maxLength={280} rows={3} defaultValue={visibleProfile?.bio ?? ''} placeholder="¿Qué compartes con tu audiencia?" className={input} /></label>
             <label className="block text-sm text-zinc-300">Tu sitio o red social<input type="url" name="website" defaultValue={visibleProfile?.website ?? ''} placeholder="https://…" className={input} /></label>
@@ -122,7 +125,7 @@ export default function SponsorshipWorkspace() {
               <label className="block text-sm text-zinc-300">Duración<select name="days" defaultValue={visibleProfile?.duration_days ?? 7} className={input}>{[7,14,30].map(days => <option value={days} key={days}>{days} días</option>)}</select></label></div>
             <label className="flex items-center gap-3 text-sm text-zinc-300"><input name="accepting" type="checkbox" defaultChecked={visibleProfile?.accepting ?? true} />Recibir solicitudes de marcas</label>
             <p className="text-xs leading-5 text-zinc-500">Los cambios de precio y duración se aplican a nuevas propuestas. Los acuerdos existentes conservan sus condiciones.</p>
-            <button disabled={busy || !current} className={`${button} w-full`}>Guardar y publicar mi oferta</button>
+            <button disabled={busy || !current || claimed.loading || !!claimed.error} className={`${button} w-full`}>Guardar y publicar mi oferta</button>
             </fieldset>
             {!wallet && <p className="text-sm text-zinc-500">Conecta tu wallet para publicar.</p>}
             {wallet && !current && <p className="text-sm text-zinc-400">Pulsa “Cargar mis campañas” para recuperar tu oferta o crear una nueva.</p>}

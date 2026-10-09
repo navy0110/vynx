@@ -1,185 +1,82 @@
-"use client";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Suspense, useState, useCallback } from "react";
-import { AddressType, useSolana, usePhantom, useModal, useAccounts } from "@phantom/react-sdk";
-import {
-  PublicKey,
-  SystemProgram,
-  Transaction,
-} from "@solana/web3.js";
+'use client';
 
-import { aliasConnection, CLAIM_PRICE_SOL, CLAIM_PRICE_LAMPORTS } from "@/lib/alias-network";
-
-const TREASURY = process.env.NEXT_PUBLIC_TREASURY_WALLET ?? "";
-
-type Step = "idle" | "building" | "signing" | "registering" | "done" | "error";
-
-const STEP_LABELS: Record<Step, string> = {
-  idle: "",
-  building: "Preparing transaction…",
-  signing: "Waiting for wallet approval…",
-  registering: "Registering your alias…",
-  done: "Done!",
-  error: "",
-};
+import { Suspense, useState, type FormEvent } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Transaction } from '@solana/web3.js';
+import { useSolana } from '@phantom/react-sdk';
+import { BrandLogo } from '@/components/BrandLogo';
+import { useWalletSession } from '@/components/WalletSessionProvider';
+import { useClaimedAlias } from '@/lib/use-claimed-alias';
+import { normalizeAlias, safeDestination } from '@/lib/alias';
+import { confirmPayment } from '@/lib/payment-client';
+import { CLAIM_PRICE_SOL } from '@/lib/alias-network';
+import { claimErrorMessage, type ClaimStage } from '@/lib/claim-errors';
 
 function BuyAliasContent() {
-  const searchParams = useSearchParams();
+  const params = useSearchParams();
   const router = useRouter();
-  const alias = searchParams.get("alias") ?? "";
-
-  const { isConnected } = usePhantom();
-  const { open: openModal } = useModal();
-  const accounts = useAccounts();
+  const session = useWalletSession();
   const { solana } = useSolana();
-
-  const [step, setStep] = useState<Step>("idle");
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const walletAddress = accounts?.find(account => account.addressType === AddressType.solana)?.address ?? null;
-
-  const handleClaim = useCallback(async () => {
-    if (!isConnected || !walletAddress || !solana) {
-      openModal();
-      return;
-    }
-
-    setStep("building");
-    setErrorMsg("");
-
+  const claimed = useClaimedAlias(session.wallet || session.connectedWallet);
+  const [alias, setAlias] = useState(params.get('alias') ?? '');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [failed, setFailed] = useState(false);
+  const [pending, setPending] = useState<{ alias: string; signature: string } | null>(null);
+  async function post(path: string, body: unknown) {
+    const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const result = await response.json();
+    if (!response.ok) throw Object.assign(new Error(result.error), { code: result.code });
+    return result;
+  }
+  async function claim(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true); setNotice(''); setFailed(false);
+    let stage: ClaimStage = 'sign-in';
+    let reference = pending;
     try {
-      await solana.switchNetwork("devnet");
-      const connection = await aliasConnection();
-      const { blockhash, lastValidBlockHeight } =
-        await connection.getLatestBlockhash("confirmed");
-
-      const senderPubkey = new PublicKey(walletAddress);
-      const treasuryPubkey = new PublicKey(TREASURY);
-
-      const tx = new Transaction();
-      tx.recentBlockhash = blockhash;
-      tx.lastValidBlockHeight = lastValidBlockHeight;
-      tx.feePayer = senderPubkey;
-
-      tx.add(
-        SystemProgram.transfer({
-          fromPubkey: senderPubkey,
-          toPubkey: treasuryPubkey,
-          lamports: CLAIM_PRICE_LAMPORTS,
-        })
-      );
-
-      setStep("signing");
-      const { signature } = await solana.signAndSendTransaction(tx);
-
-      const confirmation = await connection.confirmTransaction(
-        { signature, blockhash, lastValidBlockHeight }, "confirmed"
-      );
-      if (confirmation.value.err) throw new Error("The devnet payment failed.");
-
-      setStep("registering");
-      const res = await fetch(
-        `/api/actions/claim-alias/confirm?alias=${encodeURIComponent(alias)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ account: walletAddress, signature }),
-        }
-      );
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? `Registration failed (${res.status})`);
+      if (!session.connectedWallet) { await session.authenticate(); return; }
+      await session.ensureSession();
+      if (solana.publicKey !== session.connectedWallet) throw new Error('Reconnect the selected wallet before claiming.');
+      const key = `vynx:claim:${session.connectedWallet}`;
+      try { const saved = localStorage.getItem(key); if (saved) reference = JSON.parse(saved); } catch { /* The in-memory recovery remains available. */ }
+      if (reference) setPending(reference);
+      if (!reference) {
+        stage = 'prepare';
+        const name = normalizeAlias(alias);
+        setNotice('Preparing your devnet alias payment…');
+        const payment = await post(`/api/actions/claim-alias?alias=${name}`, { account: session.connectedWallet });
+        await solana.switchNetwork('devnet');
+        stage = 'send';
+        setNotice('Approve the alias payment in Phantom…');
+        const tx = Transaction.from(Uint8Array.from(atob(payment.transaction), character => character.charCodeAt(0)));
+        const { signature } = await solana.signAndSendTransaction(tx);
+        reference = { alias: name, signature };
+        setPending(reference);
+        try { localStorage.setItem(key, JSON.stringify(reference)); } catch { /* The signature remains visible for recovery. */ }
       }
-
-      setStep("done");
-      setTimeout(() => router.push(`/${encodeURIComponent(alias.toLowerCase())}`), 1800);
-    } catch (err: unknown) {
-      setStep("error");
-      setErrorMsg(err instanceof Error ? err.message : "Something went wrong");
-    }
-  }, [isConnected, walletAddress, solana, alias, openModal, router]);
-
-  const busy = step === "building" || step === "signing" || step === "registering";
-
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-[#3b0149] to-black text-white px-4">
-      <div className="bg-[#18181b] rounded-2xl shadow-xl p-8 max-w-md w-full flex flex-col items-center gap-6">
-
-        {/* Header */}
-        <div className="flex flex-col items-center gap-2">
-          <span className="text-4xl">⚡</span>
-          <h1 className="text-3xl font-bold">Claim your alias</h1>
-          <p className="text-zinc-400 text-sm text-center">
-            Reserve{" "}
-            <span className="font-semibold text-[#00F5A0]">@{alias || "—"}</span>{" "}
-            for your creator card on VYNX.
-          </p>
-        </div>
-
-        {/* Price card */}
-        <div className="w-full rounded-xl border border-white/10 bg-white/5 px-5 py-4 flex items-center justify-between">
-          <span className="text-zinc-400 text-sm">Registration fee</span>
-          <span className="font-bold text-white">{CLAIM_PRICE_SOL} SOL</span>
-        </div>
-
-        {/* Wallet status */}
-        {isConnected && walletAddress ? (
-          <p className="text-xs text-zinc-500 font-mono truncate w-full text-center">
-            {walletAddress}
-          </p>
-        ) : (
-          <p className="text-xs text-zinc-500 text-center">
-            Connect your wallet to proceed.
-          </p>
-        )}
-
-        {/* Step feedback */}
-        {busy && (
-          <div className="flex items-center gap-2 text-sm text-zinc-300">
-            <span className="animate-spin">⏳</span>
-            {STEP_LABELS[step]}
-          </div>
-        )}
-
-        {step === "done" && (
-          <div className="flex items-center gap-2 text-[#00F5A0] font-semibold">
-            ✅ @{alias} claimed! Redirecting…
-          </div>
-        )}
-
-        {step === "error" && (
-          <p className="text-red-400 text-sm text-center">{errorMsg}</p>
-        )}
-
-        {/* CTA */}
-        <Button
-          className="cursor-pointer w-full bg-[#00F5A0] hover:bg-[#6B4EFF] text-black font-bold rounded-md py-4 text-base shadow-xl transition disabled:opacity-50"
-          disabled={busy || step === "done" || !alias}
-          onClick={handleClaim}
-        >
-          {!isConnected
-            ? "Connect Wallet"
-            : busy
-            ? STEP_LABELS[step]
-            : step === "done"
-            ? "Done!"
-            : `Claim @${alias} — ${CLAIM_PRICE_SOL} SOL`}
-        </Button>
-
-        <p className="text-xs text-zinc-600 text-center">
-          Payment goes directly on-chain. Alias registration is recorded in VYNX.
-        </p>
-      </div>
-    </div>
-  );
+      setNotice('Payment sent. Verifying your alias…');
+      stage = 'verify';
+      const receipt = reference;
+      await confirmPayment(() => post(`/api/actions/claim-alias/confirm?alias=${receipt.alias}`, { account: session.connectedWallet, signature: receipt.signature }));
+      try { localStorage.removeItem(key); } catch { /* Server confirmation is idempotent. */ }
+      setNotice(`@${reference.alias} claimed! Opening your profile editor…`);
+      setPending(null);
+      router.replace(safeDestination(params.get('next') ?? '/dashboard/mypage')); router.refresh();
+    } catch (reason) {
+      if (reason instanceof Error && 'code' in reason && reason.code === 'PAYMENT_FAILED') {
+        setPending(null);
+        try { localStorage.removeItem(`vynx:claim:${session.connectedWallet}`); } catch { /* A failed transaction transferred no funds. */ }
+      }
+      setFailed(true); setNotice(claimErrorMessage(reason, stage, !!reference)); }
+    finally { setBusy(false); }
+  }
+  return <main className="flex min-h-screen items-center justify-center bg-[#07070a] p-6 text-white"><section className="w-full max-w-md rounded-3xl border border-white/10 bg-[#101015] p-8"><BrandLogo /><h1 className="mt-6 text-3xl font-semibold">Claim your alias</h1><p className="mt-3 text-sm leading-6 text-zinc-400">One alias per wallet. Registration costs {CLAIM_PRICE_SOL} SOL on Solana devnet, plus network fees.</p>
+    {claimed.alias ? <div className="mt-6"><p>Your wallet already owns @{claimed.alias}.</p><Link href="/dashboard/mypage" className="mt-5 inline-block rounded-xl bg-[#00F5A0] px-5 py-3 font-semibold text-black">Edit my creator card</Link></div> : <form onSubmit={event => void claim(event)} className="mt-6 space-y-4"><label className="block text-sm">Alias<input name="alias" required minLength={3} maxLength={30} disabled={busy || !!pending} value={alias} onChange={event => setAlias(event.target.value.toLowerCase())} placeholder="your_alias" className="mt-2 w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 outline-none focus:border-[#00F5A0]" /></label><button disabled={busy || claimed.loading || !!claimed.error} className="w-full rounded-xl bg-[#00F5A0] px-5 py-3 font-semibold text-black disabled:opacity-40">{busy ? 'Processing…' : pending ? 'Verify alias payment' : session.connectedWallet ? `Claim alias — ${CLAIM_PRICE_SOL} SOL` : 'Connect wallet'}</button></form>}
+    {notice && <p role={failed ? 'alert' : 'status'} className={`mt-4 text-sm ${failed ? 'text-red-200' : 'text-emerald-200'}`}>{notice}</p>}
+    {claimed.error && <p role="alert" className="mt-4 text-sm text-red-200">{claimed.error} <button onClick={claimed.retry} className="underline">Retry</button></p>}
+    {pending && <p className="mt-4 break-all text-xs text-zinc-400">Payment sent: {pending.signature}. Retry verification instead of paying again.</p>}
+  </section></main>;
 }
-
-export default function BuyAliasPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-black" />}>
-      <BuyAliasContent />
-    </Suspense>
-  );
-}
+export default function BuyAliasPage() { return <Suspense fallback={<p role="status">Loading claim…</p>}><BuyAliasContent /></Suspense>; }

@@ -5,9 +5,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, Check, Eye, ImagePlus, Link2, Monitor, Plus, Save, Smartphone, Trash2, UserRound } from 'lucide-react';
+import { WalletAuthGate } from '@/components/WalletAuthGate';
 import { Sidebar } from '@/components/Sidebar';
 import { DRAFT_KEY, EMPTY_DRAFT, draftFromProfile, readDraft, safeLink, validateDraft, type CreatorDraft } from '@/lib/creator-draft';
-import { useSponsorshipWallet } from '@/lib/use-sponsorship-wallet';
+import { useWalletSession } from '@/components/WalletSessionProvider';
+import { useClaimedAlias } from '@/lib/use-claimed-alias';
 import SponsorshipWalletControl from '@/components/SponsorshipWalletControl';
 
 const subscribe = () => () => {};
@@ -16,22 +18,29 @@ const secondary = 'inline-flex items-center justify-center gap-2 rounded-xl bord
 const accents = { mint: '#00F5A0', violet: '#b69aff', rose: '#ff94b9' };
 const tabs = ['Perfil', 'Apariencia', 'Enlaces', 'Redes', 'Ofertas'] as const;
 
-function initialDraft() {
-  try { return { draft: readDraft(localStorage.getItem(DRAFT_KEY)), error: '' }; }
+function initialDraft(wallet: string) {
+  try { return { draft: readDraft(localStorage.getItem(`${DRAFT_KEY}:${wallet}`)), error: '' }; }
   catch { return { draft: structuredClone(EMPTY_DRAFT), error: 'No se pudo recuperar el borrador. Puedes editar uno nuevo; el guardado anterior se conserva hasta que guardes.' }; }
 }
 
 export default function MyPagePage() {
+  const { wallet, checking } = useWalletSession();
   const ready = useSyncExternalStore(subscribe, () => true, () => false);
-  return <div className="min-h-screen bg-[#07070a] text-white"><Sidebar /><main className="min-w-0 px-5 py-7 sm:px-8 lg:ml-64 lg:px-10 lg:py-9">{ready ? <CreatorEditor /> : <p role="status" className="text-zinc-400">Cargando tu editor…</p>}</main></div>;
+  return <div className="min-h-screen bg-[#07070a] text-white"><Sidebar /><main className="min-w-0 px-5 py-7 sm:px-8 lg:ml-64 lg:px-10 lg:py-9">{!ready || checking ? <p role="status" className="text-zinc-400">Cargando tu editor…</p> : wallet ? <CreatorEditor key={wallet} /> : <section className="rounded-2xl border border-white/10 p-6"><p className="mb-4 text-sm text-zinc-400">Inicia sesión con la wallet seleccionada para editar su perfil.</p><WalletAuthGate /></section>}</main></div>;
 }
 
 function CreatorEditor() {
-  const { wallet, signed } = useSponsorshipWallet();
-  const [remote, setRemote] = useState<{wallet:string;draft:CreatorDraft | null} | null>(null);
+  const { wallet, ensureSession } = useWalletSession();
+  const claimed = useClaimedAlias(wallet);
   const [remoteBusy, setRemoteBusy] = useState(false);
-  const [initial] = useState(initialDraft);
-  const [draft, setDraft] = useState(initial.draft);
+  const [published, setPublished] = useState(false);
+  const [tipsEnabled, setTipsEnabled] = useState(true);
+  const [savedTipsEnabled, setSavedTipsEnabled] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [initial] = useState(() => initialDraft(wallet));
+  const storageKey = `${DRAFT_KEY}:${wallet}`;
+  const [localDraft, setDraft] = useState(initial.draft);
+  const draft = claimed.alias ? { ...localDraft, alias: claimed.alias } : localDraft;
   const [saved, setSaved] = useState(initial.draft);
   const [tab, setTab] = useState<typeof tabs[number]>('Perfil');
   const [notice, setNotice] = useState(initial.error);
@@ -40,39 +49,58 @@ function CreatorEditor() {
   const [imageBusy, setImageBusy] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const uploads = useRef<Record<'avatar' | 'cover', number>>({ avatar: 0, cover: 0 });
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved) || tipsEnabled !== savedTipsEnabled;
+  useEffect(() => {
+    const controller = new AbortController();
+    if (!wallet) return;
+    fetch('/api/profile', { signal: controller.signal, cache: 'no-store' })
+      .then(async response => { const result = await response.json(); if (!response.ok) throw new Error(result.error); return result.profile; })
+      .then(profile => {
+        if (controller.signal.aborted || !profile) return;
+        const design = draftFromProfile({ ...profile, alias: profile.username, display_name: profile.display_name || profile.username, bio: profile.bio || '' });
+        setDraft(design); setSaved(design); setPublished(profile.published); setTipsEnabled(profile.tips_enabled); setSavedTipsEnabled(profile.tips_enabled); setProfileLoaded(true);
+      })
+      .catch(reason => { if (!controller.signal.aborted) { setFailed(true); setNotice(reason instanceof Error ? reason.message : 'No se pudo cargar tu perfil.'); } });
+    return () => controller.abort();
+  }, [wallet]);
   const accent = accents[draft.accent];
-  const remoteCurrent = !!wallet && remote?.wallet === wallet;
-  const remoteDesign = remoteCurrent ? remote.draft : null;
   const walletRef = useRef(wallet);
   useEffect(() => { walletRef.current = wallet; }, [wallet]);
 
   async function loadPublished() {
     setRemoteBusy(true); setNotice(''); setFailed(false);
     try {
-      const result = await signed('list');
+      const response = await fetch('/api/profile', { cache: 'no-store' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
       if (walletRef.current !== wallet) throw new Error('La wallet cambió. Carga el perfil de la cuenta actual.');
       const profile = result.profile;
-      const design = profile ? draftFromProfile(profile) : null;
-      setRemote({wallet,draft:design});
-      setNotice(design ? 'Perfil cargado. Puedes traer su diseño al editor o publicar tu borrador actual.' : 'Aún no tienes una oferta publicada. Créala en Patrocinios antes de publicar el diseño.');
+      const design = profile ? draftFromProfile({ ...profile, alias: profile.username, display_name: profile.display_name || profile.username, bio: profile.bio || '' }) : null;
+      if (design) { setDraft(design); setSaved(design); setPublished(profile.published); setTipsEnabled(profile.tips_enabled); setSavedTipsEnabled(profile.tips_enabled); }
+      setProfileLoaded(true);
+      setNotice(design ? 'Perfil guardado cargado desde Supabase.' : 'Compra tu alias para editar tu página.');
     } catch (reason) { setFailed(true); setNotice(reason instanceof Error ? reason.message : 'No se pudo cargar tu perfil.'); }
     finally { setRemoteBusy(false); }
   }
 
-  async function publish() {
+  async function publish(makePublic = true) {
+    if (claimed.loading || claimed.error) { setFailed(true); setNotice('Espera a que se verifique el alias de tu wallet antes de publicar.'); return; }
     const error = validateDraft(draft);
     if (error) { setFailed(true); setNotice(error); return; }
-    if (!remoteCurrent || !remoteDesign) return;
+    if (!wallet) { setFailed(true); setNotice('Conecta tu wallet para guardar y publicar tu página.'); return; }
     setRemoteBusy(true); setNotice(''); setFailed(false);
     try {
-      const result = await signed('save-design', draft);
+      if (await ensureSession() !== wallet) throw new Error('La sesión pertenece a otra wallet. Carga el perfil actual.');
+      const response = await fetch('/api/profile', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ design: draft, published: makePublic, tips_enabled: tipsEnabled }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      setPublished(makePublic); setSavedTipsEnabled(tipsEnabled);
       if (walletRef.current !== wallet) throw new Error('La wallet cambió. La publicación se autorizó con la cuenta anterior; carga su perfil para comprobarla.');
       const published = readDraft(JSON.stringify(result.profile.design));
-      setRemote({wallet,draft:published}); setDraft(published);
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(published)); setSaved(published); }
-      catch { setNotice('Diseño publicado. No se pudo guardar el respaldo local; puedes recuperarlo desde tu perfil.'); return; }
-      setNotice('Diseño publicado. Tu página pública ya muestra tus imágenes, enlaces y apariencia.');
+      setDraft(published); setSaved(published);
+      try { localStorage.setItem(storageKey, JSON.stringify(published)); setSaved(published); }
+      catch { setNotice('Perfil guardado en Supabase. No se pudo guardar el respaldo local; puedes recuperarlo desde tu perfil.'); return; }
+      setNotice(makePublic ? 'Diseño publicado. Tu página pública ya muestra tus imágenes, enlaces y apariencia.' : 'Perfil guardado en Supabase. Tu página pública está oculta.');
     } catch (reason) { setFailed(true); setNotice(reason instanceof Error ? reason.message : 'No se pudo publicar. Tu borrador se conserva.'); }
     finally { setRemoteBusy(false); }
   }
@@ -91,7 +119,7 @@ function CreatorEditor() {
     const normalized = { ...draft, name: draft.name.trim(), bio: draft.bio.trim(), links: draft.links.map(link => ({ ...link, title: link.title.trim(), url: link.url.trim() })), socials: Object.fromEntries(Object.entries(draft.socials).map(([key, value]) => [key, value.trim()])) as CreatorDraft['socials'] };
     const error = validateDraft(normalized);
     if (error) { setFailed(true); setNotice(error); return; }
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(normalized)); setDraft(normalized); setSaved(normalized); setFailed(false); setNotice('Borrador guardado en este navegador. Tu página pública todavía no se modificó.'); }
+    try { localStorage.setItem(storageKey, JSON.stringify(normalized)); setDraft(normalized); setSaved(normalized); setFailed(false); setNotice('Borrador guardado en este navegador. Tu página pública todavía no se modificó.'); }
     catch { setFailed(true); setNotice('No se pudo guardar. El almacenamiento puede estar lleno o bloqueado. Tus cambios siguen en el editor; prueba con imágenes más pequeñas.'); }
   }
   async function upload(event: ChangeEvent<HTMLInputElement>, key: 'avatar' | 'cover') {
@@ -119,7 +147,7 @@ function CreatorEditor() {
   }
   function clearDraft() {
     try {
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(storageKey);
       const empty = structuredClone(EMPTY_DRAFT);
       setDraft(empty); setSaved(empty); setConfirmReset(false); setFailed(false);
       setNotice('Borrador local eliminado. Puedes empezar de nuevo.');
@@ -128,19 +156,19 @@ function CreatorEditor() {
 
   return <div className="mx-auto max-w-7xl">
     <Link href="/dashboard/products" className="mb-5 inline-flex items-center gap-2 rounded-xl border border-violet-400/30 bg-violet-400/10 px-4 py-3 text-sm font-medium text-violet-200">Mis productos · Tickets NFT y suscripciones<ArrowUpRight size={16} aria-hidden="true" /></Link>
-    <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-7"><div><p className="text-xs uppercase tracking-[.2em] text-zinc-500">Tu espacio de creador</p><h1 className="mt-2 text-2xl font-semibold">Mi página</h1><p className="mt-2 text-sm text-zinc-400">Dale tu identidad. Mira los cambios mientras editas.</p></div><div className="flex flex-wrap items-center gap-3"><span role="status" className={`text-xs ${dirty ? 'text-amber-200' : 'text-zinc-500'}`}>{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span><button onClick={save} disabled={imageBusy || remoteBusy} className="inline-flex items-center gap-2 rounded-xl bg-[#00F5A0] px-5 py-3 text-sm font-semibold text-black hover:bg-[#8affd6] disabled:opacity-40"><Save size={16} aria-hidden="true" />Guardar borrador</button></div></header>
-
-    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-400/20 bg-violet-400/5 px-4 py-3"><p className="text-xs leading-5 text-violet-200">Borrador local · se guarda solo en este navegador. El alias no se reserva y los cambios todavía no se publican.</p><Link href="/dashboard/sponsorships" className="inline-flex items-center gap-1 text-xs text-violet-300">Gestionar página pública<ArrowUpRight size={14} aria-hidden="true" /></Link></div>
+    <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-7"><div><p className="text-xs uppercase tracking-[.2em] text-zinc-500">Tu espacio de creador</p><h1 className="mt-2 text-2xl font-semibold">Mi página</h1><p className="mt-2 text-sm text-zinc-400">Dale tu identidad. Mira los cambios mientras editas.</p></div><div className="flex flex-wrap items-center gap-3"><span role="status" className={`text-xs ${dirty ? 'text-amber-200' : 'text-zinc-500'}`}>{dirty ? 'Cambios sin guardar' : 'Sin cambios pendientes'}</span><button onClick={() => void publish()} disabled={imageBusy || remoteBusy || !wallet || !profileLoaded || claimed.loading || !!claimed.error} className="inline-flex items-center gap-2 rounded-xl bg-violet-400 px-5 py-3 text-sm font-semibold text-black hover:bg-violet-300 disabled:opacity-40"><Save size={16} aria-hidden="true" />{remoteBusy ? 'Guardando…' : 'Guardar y publicar'}</button><button onClick={save} disabled={imageBusy || remoteBusy} className="inline-flex items-center gap-2 rounded-xl bg-[#00F5A0] px-5 py-3 text-sm font-semibold text-black hover:bg-[#8affd6] disabled:opacity-40"><Save size={16} aria-hidden="true" />Guardar borrador local</button><SponsorshipWalletControl /></div></header>
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-400/20 bg-violet-400/5 px-4 py-3"><p className="text-xs leading-5 text-violet-200">Edita tu borrador y pulsa Guardar y publicar para guardar en Supabase. También puedes guardar un respaldo local.</p><Link href="/dashboard/sponsorships" className="inline-flex items-center gap-1 text-xs text-violet-300">Gestionar patrocinios<ArrowUpRight size={14} aria-hidden="true" /></Link></div>
+    {claimed.loading && <p role="status" className="mt-4 text-xs text-zinc-400">Consultando el alias de tu wallet…</p>}{claimed.error && <p role="alert" className="mt-4 text-xs text-red-200">{claimed.error} <button type="button" onClick={claimed.retry} className="underline">Reintentar</button></p>}
     {notice && <p role={failed ? 'alert' : 'status'} className={`mt-4 rounded-xl border p-4 text-sm ${failed ? 'border-red-400/20 text-red-200' : 'border-[#00F5A0]/20 text-emerald-200'}`}>{notice}</p>}
-    <section className="mt-5 rounded-2xl border border-white/10 bg-[#101015] p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-sm font-semibold">Publicación con tu wallet</h2><p className="mt-2 max-w-lg text-xs leading-6 text-zinc-500">Carga tu perfil para publicar en tu página. La firma autoriza el cambio y no transfiere fondos. Al publicar, el diseño y las imágenes se guardan en Supabase y quedan visibles en tu página pública.</p></div><SponsorshipWalletControl /></div><div className="mt-4 flex flex-wrap gap-3"><button disabled={!wallet || remoteBusy || imageBusy} onClick={() => void loadPublished()} className={`${secondary} disabled:opacity-40`}>{remoteBusy ? 'Procesando…' : 'Cargar mi perfil publicado'}</button>{remoteDesign && <><button disabled={remoteBusy || imageBusy || dirty} onClick={() => {setDraft(structuredClone(remoteDesign));setNotice('Diseño publicado cargado en el editor. Guarda un respaldo local o edítalo para volver a publicar.');setFailed(false);}} className={secondary}>Traer diseño al editor</button><button disabled={remoteBusy || imageBusy} onClick={() => void publish()} className="rounded-xl bg-violet-400 px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-40">Publicar diseño actual</button><Link href={`/creators/${remoteDesign.alias}`} className="inline-flex items-center gap-1 px-2 py-2 text-xs text-violet-300">Ver página pública<ArrowUpRight size={14} /></Link></>}{remoteCurrent && !remoteDesign && <Link href="/dashboard/sponsorships" className="inline-flex items-center gap-1 px-2 py-2 text-xs text-violet-300">Crear mi oferta primero<ArrowUpRight size={14} /></Link>}</div>{remoteDesign && remoteDesign.alias !== draft.alias && <p className="mt-3 text-xs leading-6 text-amber-200">Al publicar el nuevo alias cambiará tu enlace público. El enlace anterior dejará de funcionar.</p>}{remoteDesign && dirty && <p className="mt-3 text-xs text-amber-200">Guarda o descarta los cambios locales antes de traer el diseño publicado.</p>}</section>
+    <section className="mt-5 rounded-2xl border border-white/10 bg-[#101015] p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-sm font-semibold">Tu página pública</h2><p className="mt-2 text-xs leading-6 text-zinc-500">{published ? 'Tu página está publicada. Guarda y publica para actualizarla.' : 'Guarda y publica cuando tu página esté lista.'}</p></div><div className="flex flex-wrap items-center gap-3"><button disabled={remoteBusy || imageBusy || dirty} onClick={() => void loadPublished()} className={secondary}>Recargar mi perfil guardado</button><button disabled={remoteBusy || imageBusy || !profileLoaded} onClick={() => void publish(false)} className={secondary}>Guardar sin publicar</button>{published && <Link href={`/${draft.alias}`} className="text-xs text-violet-300">Ver página pública ↗</Link>}</div></div></section>
     <div className="mt-4 text-xs text-zinc-500">{confirmReset ? <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-400/20 p-4"><p>Se eliminarán el borrador guardado y los cambios del editor.</p><button disabled={imageBusy || remoteBusy} onClick={clearDraft} className="rounded-lg px-3 py-2 text-red-300 disabled:opacity-40">Eliminar borrador</button><button onClick={() => setConfirmReset(false)} className="rounded-lg px-3 py-2 text-zinc-300">Cancelar</button></div> : <button disabled={imageBusy || remoteBusy} onClick={() => setConfirmReset(true)} className="rounded-lg py-2 hover:text-zinc-300 disabled:opacity-40">Empezar de nuevo</button>}</div>
     <div className="mt-7 grid min-w-0 gap-7 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <section className="min-w-0 rounded-2xl border border-white/10 bg-[#101015]">
         <div role="group" aria-label="Secciones del editor" className="grid grid-cols-3 gap-1 border-b sm:grid-cols-5 border-white/10 p-3">{tabs.map(item => <button key={item} aria-pressed={tab === item} onClick={() => setTab(item)} className={`rounded-lg px-1 py-3 text-xs font-medium transition sm:text-sm ${tab === item ? 'bg-[#00F5A0]/10 text-[#00F5A0]' : 'text-zinc-400 hover:bg-white/5'}`}>{item}</button>)}</div>
-        <fieldset disabled={remoteBusy} className="space-y-6 p-5 disabled:opacity-60 sm:p-7">
+        <fieldset disabled={remoteBusy || !profileLoaded} className="space-y-6 p-5 disabled:opacity-60 sm:p-7">
           {tab === 'Ofertas' && <CreatorOfferSelection />}
-          {tab === 'Perfil' && <><div><h2 className="text-lg font-semibold">La persona detrás de tu página</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Un nombre, una historia y un lugar para tu comunidad.</p></div>
-            <label className="block text-sm text-zinc-300">Alias<input value={draft.alias} maxLength={30} onChange={e => update('alias', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="tu_alias" className={field} /><span className="mt-2 block break-all text-xs text-zinc-500">Alias propuesto: @{draft.alias || 'tu_alias'} · disponibilidad pendiente</span></label>
+          {tab === 'Perfil' && <><p className="text-xs text-zinc-500">{published ? 'Página publicada' : 'Página sin publicar'}</p><label className="flex items-center gap-3 text-sm text-zinc-300"><input type="checkbox" checked={tipsEnabled} onChange={event => setTipsEnabled(event.target.checked)} />Recibir propinas en SOL</label><div><h2 className="text-lg font-semibold">La persona detrás de tu página</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Un nombre, una historia y un lugar para tu comunidad.</p></div>
+            <label className="block text-sm text-zinc-300">Alias<input aria-label="Alias" value={draft.alias} readOnly={!!claimed.alias} disabled={claimed.loading || !!claimed.error} maxLength={30} onChange={e => update('alias', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} placeholder="tu_alias" className={field} /><span className="mt-2 block break-all text-xs text-zinc-500">{claimed.alias ? 'Alias comprado por tu wallet:' : 'Alias propuesto:'} @{draft.alias || 'tu_alias'}{!claimed.alias && ' · disponibilidad pendiente'}</span></label>
             <label className="block text-sm text-zinc-300">Nombre de creador<input value={draft.name} maxLength={60} onChange={e => update('name', e.target.value)} placeholder="¿Cómo te conoce tu comunidad?" className={field} /></label>
             <label className="block text-sm text-zinc-300">Presentación<textarea value={draft.bio} maxLength={280} rows={4} onChange={e => update('bio', e.target.value)} placeholder="Cuenta qué creas y qué te inspira…" className={`${field} resize-y`} /><span className="mt-2 block text-right text-xs text-zinc-500">{draft.bio.length} / 280</span></label>
             {(['avatar', 'cover'] as const).map(key => <div key={key} className="rounded-xl border border-white/10 p-4"><h3 className="text-sm font-medium">{key === 'avatar' ? 'Foto de perfil' : 'Portada'}</h3><div className="mt-3 flex flex-wrap items-center gap-4"><div className={`relative shrink-0 overflow-hidden bg-white/5 ${key === 'avatar' ? 'size-16 rounded-full' : 'h-16 w-28 rounded-lg'}`}>{draft[key] ? <Image src={draft[key]} alt={key === 'avatar' ? 'Foto de perfil seleccionada' : 'Portada seleccionada'} fill unoptimized sizes="112px" className="object-cover" /> : <div className="flex h-full items-center justify-center text-zinc-500"><ImagePlus size={23} aria-hidden="true" /></div>}</div><div><label className={`${secondary} cursor-pointer focus-within:outline-2 focus-within:outline-[#00F5A0]`}>Elegir imagen<input type="file" aria-label={key === 'avatar' ? 'Subir foto de perfil' : 'Subir portada'} accept="image/png,image/jpeg,image/webp" disabled={imageBusy || remoteBusy} className="sr-only" onChange={e => void upload(e, key)} /></label>{draft[key] && <button disabled={imageBusy || remoteBusy} onClick={() => update(key, '')} className="ml-3 text-xs text-zinc-400">Quitar</button>}<p className="mt-2 text-xs text-zinc-500">JPG, PNG o WebP · hasta 1 MB</p></div></div></div>)}
@@ -148,10 +176,10 @@ function CreatorEditor() {
           {tab === 'Apariencia' && <><div><h2 className="text-lg font-semibold">Una página que se sienta tuya</h2><p className="mt-2 text-sm text-zinc-500">Elige el tono de tu espacio.</p></div><fieldset><legend className="text-sm text-zinc-300">Color de acento</legend><div className="mt-3 flex flex-wrap gap-3">{(Object.keys(accents) as Array<keyof typeof accents>).map(color => <label key={color} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-3 text-sm ${draft.accent === color ? 'border-white/40' : 'border-white/10'}`}><input type="radio" name="accent" checked={draft.accent === color} onChange={() => update('accent', color)} className="sr-only peer" /><span className="size-5 rounded-full peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4" style={{background: accents[color]}} />{color === 'mint' ? 'Menta' : color === 'violet' ? 'Violeta' : 'Rosa'}{draft.accent === color && <Check size={14} aria-hidden="true" />}</label>)}</div></fieldset><fieldset><legend className="text-sm text-zinc-300">Fondo de la página</legend><div className="mt-3 grid grid-cols-2 gap-3">{(['dark','light'] as const).map(theme => <label key={theme} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 p-4 text-sm"><input type="radio" name="theme" checked={draft.theme === theme} onChange={() => update('theme', theme)} />{theme === 'dark' ? 'Oscuro' : 'Claro'}</label>)}</div></fieldset><label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4 text-sm">Botones redondeados<input type="checkbox" checked={draft.rounded} onChange={e => update('rounded', e.target.checked)} className="size-4 accent-emerald-400" /></label></>}
           {tab === 'Enlaces' && <><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Lo que quieres compartir</h2><p className="mt-2 text-sm text-zinc-500">Hasta 8 enlaces. Elige su orden.</p></div><button disabled={draft.links.length >= 8} onClick={() => update('links', [...draft.links, {id: crypto.randomUUID(), title:'', url:''}])} className={secondary}><Plus size={16} aria-hidden="true" />Agregar enlace</button></div>{!draft.links.length && <div className="rounded-xl border border-dashed border-white/15 p-7 text-center text-sm leading-6 text-zinc-500">Tu sitio, tu último video o tu proyecto favorito.<br />Agrega tu primer enlace para verlo en la vista previa.</div>}{draft.links.map((link,index) => <div key={link.id} className="space-y-3 rounded-xl border border-white/10 p-4"><div className="flex items-center justify-between"><p className="text-xs text-zinc-500">Enlace {index + 1}</p><div className="flex gap-1">{[{label:'Subir', icon:ArrowUp, offset:-1, disabled:index === 0}, {label:'Bajar', icon:ArrowDown, offset:1, disabled:index === draft.links.length - 1}].map(({label,icon:Icon,offset,disabled}) => <button key={label} aria-label={`${label} enlace ${index + 1}`} disabled={disabled} onClick={() => reorder(index,offset)} className="rounded-lg p-2 text-zinc-400 hover:bg-white/5 disabled:opacity-25"><Icon size={16} /></button>)}<button aria-label={`Eliminar enlace ${index + 1}`} onClick={() => update('links', draft.links.filter(item => item.id !== link.id))} className="rounded-lg p-2 text-red-300 hover:bg-red-400/10"><Trash2 size={16} /></button></div></div><label className="block text-xs text-zinc-400">Título del enlace {index + 1}<input value={link.title} maxLength={60} placeholder="Mi último video" onChange={e => update('links', draft.links.map(item => item.id === link.id ? {...item,title:e.target.value} : item))} className={field} /></label><label className="block text-xs text-zinc-400">URL del enlace {index + 1}<input value={link.url} type="url" maxLength={500} placeholder="https://…" onChange={e => update('links', draft.links.map(item => item.id === link.id ? {...item,url:e.target.value} : item))} className={field} /></label></div>)}</>}
           {tab === 'Redes' && <><div><h2 className="text-lg font-semibold">Conecta con tu comunidad</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Agrega el enlace completo de tus perfiles. Deja vacío lo que no quieras mostrar.</p></div>{(['instagram','youtube','x'] as const).map(network => <label key={network} className="block text-sm text-zinc-300">{network === 'x' ? 'X' : network === 'youtube' ? 'YouTube' : 'Instagram'}<input value={draft.socials[network]} type="url" maxLength={500} placeholder={`https://${network === 'x' ? 'x' : network}.com/tu_perfil`} onChange={e => update('socials', {...draft.socials,[network]:e.target.value})} className={field} /></label>)}</>}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5"><p className="text-xs text-zinc-500">La vista previa cambia al instante.</p><button disabled={!dirty || imageBusy} onClick={() => { uploads.current.avatar++; uploads.current.cover++; setDraft(structuredClone(saved)); setNotice('Volviste al último borrador guardado.'); setFailed(false); }} className="text-xs text-zinc-400 hover:text-white disabled:opacity-30">Descartar cambios</button></div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5"><p className="text-xs text-zinc-500">La vista previa cambia al instante.</p><button disabled={!dirty || imageBusy} onClick={() => { uploads.current.avatar++; uploads.current.cover++; setTipsEnabled(savedTipsEnabled); setDraft(structuredClone(saved)); setNotice('Volviste al último borrador guardado.'); setFailed(false); }} className="text-xs text-zinc-400 hover:text-white disabled:opacity-30">Descartar cambios</button></div>
         </fieldset>
       </section>
-      <aside className="min-w-0 self-start xl:sticky xl:top-7"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-sm font-semibold"><Eye size={16} aria-hidden="true" />Vista previa</h2><p className="mt-1 text-xs text-zinc-500">Borrador · todavía no publicado</p></div><div className="flex gap-1 rounded-lg border border-white/10 p-1"><button aria-label="Vista previa móvil" aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')} className={`rounded-md p-2 ${device === 'mobile' ? 'bg-white/10 text-white' : 'text-zinc-500'}`}><Smartphone size={16} /></button><button aria-label="Vista previa de escritorio" aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')} className={`rounded-md p-2 ${device === 'desktop' ? 'bg-white/10 text-white' : 'text-zinc-500'}`}><Monitor size={16} /></button></div></div>
+      <aside className="min-w-0 self-start xl:sticky xl:top-7"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-sm font-semibold"><Eye size={16} aria-hidden="true" />Vista previa</h2><p className="mt-1 text-xs text-zinc-500">Vista previa de tus cambios</p></div><div className="flex gap-1 rounded-lg border border-white/10 p-1"><button aria-label="Vista previa móvil" aria-pressed={device === 'mobile'} onClick={() => setDevice('mobile')} className={`rounded-md p-2 ${device === 'mobile' ? 'bg-white/10 text-white' : 'text-zinc-500'}`}><Smartphone size={16} /></button><button aria-label="Vista previa de escritorio" aria-pressed={device === 'desktop'} onClick={() => setDevice('desktop')} className={`rounded-md p-2 ${device === 'desktop' ? 'bg-white/10 text-white' : 'text-zinc-500'}`}><Monitor size={16} /></button></div></div>
         <Link href="/dashboard/mypage/preview" target="_blank" rel="noopener noreferrer" className="mb-4 flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-xs text-violet-300">Ver borrador guardado como página completa<ArrowUpRight size={14} /></Link>
         {dirty && <p className="mb-4 text-center text-xs text-amber-200">Guarda tus cambios antes de abrir la página completa.</p>}
         <div className={`mx-auto overflow-hidden rounded-3xl border border-white/15 shadow-2xl transition-[max-width] ${device === 'mobile' ? 'max-w-[340px]' : 'max-w-full'} ${draft.theme === 'dark' ? 'bg-[#101015] text-white' : 'bg-[#f5f5f7] text-zinc-900'}`}>

@@ -1,0 +1,71 @@
+// Deterministic RPC boundary for browser tests. Application APIs and Postgres remain real.
+import http from 'node:http';
+import { Transaction, SystemInstruction, SystemProgram, Keypair } from '@solana/web3.js';
+import bs58 from 'bs58';
+
+const MEMO = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
+const GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
+export function fixtureServer(databaseUrl) {
+  const ledger = new Map();
+  const delays = new Map();
+  let slot = 1;
+  const server = http.createServer(async (request, response) => {
+    response.setHeader('Access-Control-Allow-Origin', '*');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey, x-client-info');
+    if (request.method === 'OPTIONS') { response.writeHead(204).end(); return; }
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const raw = Buffer.concat(chunks);
+    try {
+      if (request.url.startsWith('/rest/v1')) {
+        const target = `${databaseUrl}${request.url.slice('/rest/v1'.length)}`;
+        const headers = { ...request.headers }; delete headers.host; delete headers['content-length'];
+        const result = await fetch(target, { method: request.method, headers, body: ['GET', 'HEAD'].includes(request.method) ? undefined : raw });
+        response.statusCode = result.status;
+        for (const name of ['content-type', 'content-range', 'preference-applied', 'range-unit']) if (result.headers.has(name)) response.setHeader(name, result.headers.get(name));
+        response.end(Buffer.from(await result.arrayBuffer())); return;
+      }
+      if (request.url === '/test/submit') {
+        const body = JSON.parse(raw);
+        const tx = Transaction.from(Buffer.from(body.transaction, 'base64'));
+        if (!tx.verifySignatures()) throw new Error('Test wallet submitted an unsigned transaction.');
+        const signature = bs58.encode(tx.signature);
+        const message = tx.compileMessage();
+        const keys = message.accountKeys;
+        const pre = keys.map(() => 1_000_000_000);
+        const post = [...pre];
+        const instructions = tx.instructions.map(instruction => {
+          if (instruction.programId.equals(SystemProgram.programId)) {
+            const transfer = SystemInstruction.decodeTransfer(instruction);
+            const from = keys.findIndex(key => key.equals(transfer.fromPubkey));
+            const to = keys.findIndex(key => key.equals(transfer.toPubkey));
+            post[from] -= Number(transfer.lamports); post[to] += Number(transfer.lamports);
+            return { program: 'system', programId: SystemProgram.programId.toBase58(), parsed: { type: 'transfer', info: { source: transfer.fromPubkey.toBase58(), destination: transfer.toPubkey.toBase58(), lamports: Number(transfer.lamports) } } };
+          }
+          if (instruction.programId.toBase58() === MEMO) return { program: 'spl-memo', programId: MEMO, parsed: instruction.data.toString() };
+          throw new Error('Unexpected instruction in test payment.');
+        });
+        delays.set(signature, body.delay ?? 0);
+        ledger.set(signature, { slot: slot++, blockTime: Math.floor(Date.now() / 1000), version: 'legacy', meta: { err: body.failed ? { InstructionError: [0, 'Custom'] } : null, fee: 5000, preBalances: pre, postBalances: post, innerInstructions: [], logMessages: [] }, transaction: { signatures: [signature], message: { accountKeys: keys.map((key, index) => ({ pubkey: key.toBase58(), signer: message.isAccountSigner(index), writable: message.isAccountWritable(index), source: 'transaction' })), instructions, recentBlockhash: tx.recentBlockhash } } });
+        response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ signature })); return;
+      }
+      const rpc = JSON.parse(raw);
+      let result;
+      switch (rpc.method) {
+        case 'getGenesisHash': result = GENESIS; break;
+        case 'getLatestBlockhash': result = { context: { slot }, value: { blockhash: Keypair.generate().publicKey.toBase58(), lastValidBlockHeight: 100000 } }; break;
+        case 'getTransaction': {
+          const pending = delays.get(rpc.params[0]) ?? 0;
+          if (pending > 0) delays.set(rpc.params[0], pending - 1);
+          result = pending > 0 ? null : ledger.get(rpc.params[0]) ?? null; break;
+        }
+        case 'getSignatureStatuses': result = { context: { slot }, value: rpc.params[0].map(signature => ledger.has(signature) ? { slot, confirmations: null, err: ledger.get(signature).meta.err, confirmationStatus: 'finalized' } : null) }; break;
+        case 'getBlockHeight': result = slot; break;
+        default: throw new Error(`Unexpected RPC call: ${rpc.method}`);
+      }
+      response.setHeader('Content-Type', 'application/json');
+      response.end(JSON.stringify({ jsonrpc: '2.0', id: rpc.id, result }));
+    } catch (reason) { response.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: reason.message })); }
+  });
+  return server;
+}

@@ -1,18 +1,20 @@
 'use client';
 import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
+import { useWalletSession } from '@/components/WalletSessionProvider';
 import { CreatorPublicView } from '@/components/CreatorPublicView';
 import { DRAFT_KEY, readDraft, type CreatorDraft } from '@/lib/creator-draft';
 
 const subscribe = () => () => {};
 export default function DraftPreviewPage() {
+  const { wallet, checking } = useWalletSession();
   const ready = useSyncExternalStore(subscribe, () => true, () => false);
-  return ready ? <DraftPreview /> : <main className="min-h-screen bg-[#07070a] p-8 text-zinc-400" role="status">Cargando tu borrador…</main>;
+  return ready && !checking && wallet ? <DraftPreview key={wallet} wallet={wallet} /> : <main className="min-h-screen bg-[#07070a] p-8 text-zinc-400" role="status">Cargando tu borrador…</main>;
 }
-function DraftPreview() {
+function DraftPreview({ wallet }: { wallet: string }) {
   const [result] = useState<{draft:CreatorDraft | null;error:string}>(() => {
     try {
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(`${DRAFT_KEY}:${wallet}`);
       return {draft:raw ? readDraft(raw) : null,error:''};
     } catch { return {draft:null,error:'No se pudo recuperar el borrador guardado.'}; }
   });

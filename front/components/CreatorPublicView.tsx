@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { BrandLogo } from '@/components/BrandLogo';
 import { ArrowLeft, ArrowUpRight, Check, Clock3, Globe, Link2, Pause, ShieldCheck, Sparkles, UserRound } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import SponsorshipWalletControl from '@/components/SponsorshipWalletControl';
@@ -28,7 +29,7 @@ export function CreatorPublicView({ profile, ad, design, preview = false, onRequ
 
   return <main className={`min-h-screen px-5 py-6 sm:px-8 ${light ? 'bg-[#f5f5f7] text-zinc-900' : 'bg-[#07070a] text-white'}`}>
     <div className="mx-auto max-w-6xl">
-      <nav aria-label="Navegación de la página pública" className="mb-8 flex flex-wrap items-center justify-between gap-4"><Link href="/" className="text-2xl font-black tracking-tight" aria-label="Vynx, inicio">VYNX<span style={{color:accent}}>.</span></Link><div className="flex flex-wrap items-center gap-4">{preview ? <Link href="/dashboard/mypage" className="inline-flex items-center gap-2 text-sm opacity-60"><ArrowLeft size={15} />Volver al editor</Link> : <><Link href="/dashboard/sponsorships" className="text-xs opacity-60">Mis patrocinios ↗</Link><SponsorshipWalletControl /></>}</div></nav>
+      <nav aria-label="Navegación de la página pública" className="mb-8 flex flex-wrap items-center justify-between gap-4"><BrandLogo light={light} /><div className="flex flex-wrap items-center gap-4">{preview ? <Link href="/dashboard/mypage" className="inline-flex items-center gap-2 text-sm opacity-60"><ArrowLeft size={15} />Volver al editor</Link> : <><Link href="/dashboard/sponsorships" className="text-xs opacity-60">Mis patrocinios ↗</Link><SponsorshipWalletControl /></>}</div></nav>
       {preview && <p role="status" className="mb-6 rounded-xl border border-violet-400/30 bg-violet-400/10 p-4 text-sm leading-6">Vista previa local · solo tú ves este borrador en este navegador. No está publicado y no permite enviar propuestas. El precio se configura en Patrocinios.</p>}
       <div className="grid gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">

@@ -3,8 +3,8 @@ import test from "node:test";
 import { REQUIRED_ENV_KEYS, validateEnvironment } from "../scripts/env-validation.mjs";
 
 const validEnvironment = {
-  NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co",
-  NEXT_PUBLIC_SUPABASE_KEY: "anon-key-value",
+  SUPABASE_URL: "https://abc.supabase.co",
+  SUPABASE_ANON_KEY: "anon-key-value",
   SUPABASE_SECRET_KEY: "server-secret-value",
   NEXT_PUBLIC_TREASURY_WALLET: "11111111111111111111111111111111",
   NEXT_PUBLIC_SOLANA_RPC_URL: "https://api.devnet.solana.com",
@@ -44,7 +44,7 @@ test("rejects known non-devnet RPC endpoints", () => {
 test("rejects placeholders, malformed values, and public secrets", () => {
   const errors = validateEnvironment({
     ...validEnvironment,
-    NEXT_PUBLIC_SUPABASE_URL: "not-a-url",
+    SUPABASE_URL: "not-a-url",
     NEXT_PUBLIC_TREASURY_WALLET: "not a public key",
     NEXT_PUBLIC_APP_URL: "https://vynx.me/",
     NEXT_PUBLIC_PHANTOM_APP_ID: "your-phantom-app-id",
@@ -56,4 +56,11 @@ test("rejects placeholders, malformed values, and public secrets", () => {
   assert.ok(errors.some((error) => error.includes("trailing slash")));
   assert.ok(errors.some((error) => error.includes("placeholder")));
   assert.ok(errors.some((error) => error.includes("public NEXT_PUBLIC_ prefix")));
+});
+
+ test("rejects public Supabase configuration", () => {
+  for (const key of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_KEY", "NEXT_PUBLIC_SUPABASE_SECRET_KEY"]) {
+    const errors = validateEnvironment({ ...validEnvironment, [key]: "unsafe-value" });
+    assert.ok(errors.some(error => error.includes(key) && error.includes("public NEXT_PUBLIC_ prefix")));
+  }
 });

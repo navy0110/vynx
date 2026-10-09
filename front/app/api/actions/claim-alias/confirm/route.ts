@@ -1,88 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from 'next/server';
+import { confirmClaim } from '@/lib/alias-claim';
+import { ALIAS_BLOCKCHAIN_ID } from '@/lib/alias-network';
+import { ApiError } from '@/lib/wallet-session';
 
-import { aliasConnection, ALIAS_BLOCKCHAIN_ID, verifyAliasPayment } from "@/lib/alias-network";
-
-const CORS = {
-  "X-Action-Version": "2.1.3",
-  "X-Blockchain-Ids": ALIAS_BLOCKCHAIN_ID,
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SECRET_KEY!
-);
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS });
-}
-
-// Called by blink clients (and internally) after the tx is signed and confirmed
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'X-Action-Version': '2.1.3', 'X-Blockchain-Ids': ALIAS_BLOCKCHAIN_ID, 'Cache-Control': 'no-store' };
+export async function OPTIONS() { return new NextResponse(null, { status: 204, headers: CORS }); }
 export async function POST(request: NextRequest) {
-  const alias = request.nextUrl.searchParams.get("alias") ?? "";
-
-  const body = await request.json().catch(() => ({}));
-  const walletAddress: string = body.account ?? "";
-  const txSignature: string = body.signature ?? "";
-
-  if (!alias || !walletAddress || !txSignature) {
-    return NextResponse.json(
-      { error: "alias, account and signature are required" },
-      { status: 400, headers: CORS }
-    );
-  }
-
-  const treasury = process.env.NEXT_PUBLIC_TREASURY_WALLET;
-  if (!treasury) return NextResponse.json({ error: "Treasury wallet not configured" }, { status: 503, headers: CORS });
-
   try {
-    const connection = await aliasConnection();
-    const tx = await connection.getParsedTransaction(txSignature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
-    verifyAliasPayment(tx, walletAddress, treasury);
-  } catch {
-    return NextResponse.json({ error: "A confirmed devnet alias payment is required. Check your network and retry." }, { status: 400, headers: CORS });
-  }
-
-  // Check alias is still available
-  const { data: existing } = await supabaseAdmin
-    .from("cards_users")
-    .select("id")
-    .eq("username", alias.toLowerCase())
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json(
-      { error: "Alias already taken" },
-      { status: 409, headers: CORS }
-    );
-  }
-
-  const { error } = await supabaseAdmin.from("cards_users").insert({
-    wallet_address: walletAddress,
-    username: alias.toLowerCase(),
-    tx_signature: txSignature || null,
-  });
-
-  if (error) {
-    console.error("[register]", error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500, headers: CORS }
-    );
-  }
-
-  // Solana Actions nextAction response format
-  return NextResponse.json(
-    {
-      type: "completed",
-      title: `@${alias} is yours!`,
-      icon: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/logo.png`,
-      description: "Your creator card is live on VYNX.",
-      label: "Done",
-    },
-    { headers: CORS }
-  );
+    const body = await request.json();
+    const result = await confirmClaim(request.nextUrl.searchParams.get('alias'), body.account, body.signature);
+    return NextResponse.json({ ...result, type: 'completed', title: `@${result.alias} is yours!`, icon: `${process.env.NEXT_PUBLIC_APP_URL}/logo.png`, description: 'Your alias is registered. Customize and publish your creator card.', label: 'Done' }, { headers: CORS });
+  } catch (reason) { return NextResponse.json({ error: reason instanceof Error ? reason.message : 'Unable to verify claim.', ...(reason instanceof ApiError && reason.code ? { code: reason.code } : {}) }, { status: reason instanceof ApiError ? reason.status : 400, headers: CORS }); }
 }

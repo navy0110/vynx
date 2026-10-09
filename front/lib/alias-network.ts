@@ -1,13 +1,13 @@
-import { Connection, type ParsedTransactionWithMeta } from "@solana/web3.js";
+import { Connection, type ConnectionConfig, type ParsedTransactionWithMeta } from "@solana/web3.js";
 
 export const DEVNET_GENESIS_HASH = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
 export const ALIAS_BLOCKCHAIN_ID = `solana:${DEVNET_GENESIS_HASH}`;
 export const CLAIM_PRICE_SOL = 0.00001;
 export const CLAIM_PRICE_LAMPORTS = 10_000;
 
-export async function aliasConnection() {
+export async function aliasConnection(options: ConnectionConfig = {}) {
   const rpc = process.env.NEXT_PUBLIC_SOLANA_RPC_URL?.trim() || "https://api.devnet.solana.com";
-  const connection = new Connection(rpc, "confirmed");
+  const connection = new Connection(rpc, { commitment: 'confirmed', ...options });
   if (await connection.getGenesisHash() !== DEVNET_GENESIS_HASH) {
     throw new Error("Alias claiming requires Solana devnet. Check the RPC configuration.");
   }

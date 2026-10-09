@@ -6,14 +6,14 @@ This first version connects creators and brands through a single sponsored text 
 
 1. Install the project dependencies with `npm install` (Node 22.14 or later).
 2. Configure `.env.local` using `.env.example`. Do not place the Supabase secret key in a public variable.
-3. Apply `supabase/migrations/001_profiles.sql` if not already applied, then `002_sponsorships.sql`, in the Supabase SQL editor. The new migration does not change existing creator cards.
+3. Apply `supabase/migrations/001_profiles.sql` if not already applied, then migrations 002–004, in the Supabase SQL editor. The new migration does not change existing creator cards.
 4. Start the application with `npm run dev` and open `/dashboard/sponsorships`.
 
 The sponsorship payment service deliberately uses `https://api.devnet.solana.com` and Circle's devnet USDC mint `4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`. It does not use the alias treasury. A wallet needs devnet USDC plus devnet SOL for transaction fees and, if needed, the creator's token account rent. Circle's test faucet: https://faucet.circle.com/ .
 
 ## Demo walkthrough
 
-1. Connect creator wallet A. Load existing campaigns before editing an existing offer. Save an alias, name, bio, link, price and duration.
+1. Connect and sign in with creator wallet A, and claim an alias. Load existing campaigns before editing an existing offer. Save an alias, name, bio, link, price and duration.
 2. Open `/creators/<alias>` to see the public page. Visitors can browse without connecting a wallet.
 3. With brand wallet B, submit a brand name, headline, description and HTTPS destination. There is no payment yet.
 4. With wallet A, load campaigns and approve or reject the request. Only one sponsorship can be approved or live at a time.
@@ -24,7 +24,7 @@ The sponsorship payment service deliberately uses `https://api.devnet.solana.com
 
 ## Scope and limitations
 
-- Profiles and campaigns persist in Supabase. Private requests use server-issued, expiring, single-use Ed25519 wallet challenges bound to the origin, action and exact payload. Browser clients cannot access the new tables directly.
+- Profiles and campaigns persist in Supabase. Private requests require a wallet application session and use server-issued, expiring, single-use Ed25519 wallet challenges bound to the origin, action and exact payload. Browser clients cannot access the new tables directly.
 - The agreed price, duration and creative are frozen in the request; later profile edits do not change them.
 - Approval reserves the exclusive space until payment. Cancellation, approval expiry and refund flows are not implemented.
 - Direct transfers have no escrow or automatic delivery guarantee. No real-money launch is intended in this version.
@@ -39,8 +39,8 @@ The sponsorship payment service deliberately uses `https://api.devnet.solana.com
 
 ## Publicar el diseño del creador
 
-Aplica `supabase/migrations/003_creator_design.sql` después de la migración 002. En `/dashboard/mypage`, conecta la wallet, carga su perfil publicado y publica el diseño actual. Primero debe existir una oferta en Patrocinios. El editor mantiene un borrador local independiente y permite traer el diseño publicado sin sobrescribir cambios pendientes.
+Aplica las migraciones 001–004 en orden. El editor `/dashboard/mypage` carga y guarda el diseño de `cards_users` con una sesión de wallet verificada. El alias comprado es de solo lectura y no necesitas crear una oferta de patrocinio para publicar tu Creator Card. La página pública del creador está en `/<alias>` y las ofertas de patrocinio mantienen `/creators/<alias>`.
 
-El servidor valida el diseño y limita el cuerpo a 3 MB; las imágenes raster pequeñas se guardan dentro del JSON del perfil para este MVP. Las firmas incluyen el hash completo del diseño y las imágenes, aunque el mensaje de wallet muestra solo un resumen legible. La actualización se limita a la wallet firmante y no cambia precios, duración ni condiciones de campañas existentes. Cambiar el alias cambia el enlace público; los aliases de este módulo son independientes del flujo legacy de compra de alias.
+La migración 004 conserva los diseños publicados de patrocinios cuando la wallet también tiene un alias comprado. Las imágenes raster pequeñas se guardan dentro del JSON del perfil (máximo 1 MB por imagen y 3 MB por solicitud). Las condiciones de campañas, precios y duraciones siguen en las tablas de patrocinio.
 
-Antes de escalar el piloto, migra las imágenes a object storage. Esta implementación no aplica migraciones automáticamente ni reemplaza una prueba de publicación con Supabase y wallets reales en devnet.
+`npm run test:e2e` verifica la sesión, compra de alias, editor persistente, página pública y propinas SOL con Postgres aislado y un RPC de prueba. La verificación de pagos USDC y una prueba de pagos reales en devnet siguen siendo independientes de esa suite.

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowRight, ArrowUpRight, Check, Copy, Inbox, LayoutTemplate, RefreshCw, Sparkles, Wallet } from "lucide-react";
+import { CreatorTipSummary } from "@/components/CreatorTipSummary";
 import { Sidebar } from "@/components/Sidebar";
 import SponsorshipWalletControl from "@/components/SponsorshipWalletControl";
 import { useSponsorshipWallet } from "@/lib/use-sponsorship-wallet";
@@ -55,6 +56,7 @@ export default function DashboardPage() {
     <Sidebar creatorAlias={profile?.alias} />
     <main className="min-w-0 px-5 py-7 sm:px-8 lg:ml-64 lg:px-10 lg:py-9 xl:px-12"><div className="mx-auto max-w-7xl">
       <header className="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-7"><div><p className="text-xs font-medium uppercase tracking-[.2em] text-zinc-500">Tu espacio de creador</p><h1 className="mt-2 text-2xl font-semibold tracking-tight">Resumen</h1></div><SponsorshipWalletControl /></header>
+      <CreatorTipSummary />
       <section className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#182c26] via-[#12171c] to-[#20152f] p-7 sm:p-10">
         <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 size-80 rounded-full border-[50px] border-[#00F5A0]/5 sm:right-0" />
         <div className="relative max-w-2xl"><span className="inline-flex items-center gap-2 rounded-full border border-[#00F5A0]/20 bg-[#00F5A0]/5 px-3 py-1 text-xs text-[#9cfbd4]"><span className="size-1.5 rounded-full bg-[#00F5A0]" />Solana devnet · modo de prueba</span><h2 className="mt-6 break-words text-3xl font-semibold tracking-tight sm:text-5xl">{profile ? `Hola, ${profile.display_name}.` : "Tu comunidad. Tu próximo paso."}</h2><p className="mt-4 max-w-lg text-sm leading-7 text-zinc-300 sm:text-base">{profile ? "Tu oferta ya tiene un lugar. Revisa las propuestas y elige qué marcas quieres compartir con tu comunidad." : "Convierte tu espacio en una oportunidad para colaborar. Crea tu oferta y deja que las marcas te encuentren."}</p><div className="mt-7 flex flex-wrap gap-3"><Link href="/dashboard/sponsorships" className={primary}>{profile ? "Gestionar patrocinios" : "Crear mi primera oferta"}<ArrowUpRight size={17} aria-hidden="true" /></Link><Link href="/dashboard/mypage" className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-3 text-sm font-medium hover:bg-white/5">Personalizar mi página<ArrowRight size={16} aria-hidden="true" /></Link></div></div>

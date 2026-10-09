@@ -3,6 +3,7 @@
 import { useLayoutEffect } from "react";
 import { PhantomProvider, darkTheme, type PhantomSDKConfig } from "@phantom/react-sdk";
 import { AddressType } from "@phantom/browser-sdk";
+import { WalletSessionProvider } from "@/components/WalletSessionProvider";
 
 const appId = process.env.NEXT_PUBLIC_PHANTOM_APP_ID?.trim() || undefined;
 const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -34,7 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       theme={darkTheme}
       appName="VYNX"
     >
-      {children}
+      <WalletSessionProvider>{children}</WalletSessionProvider>
     </PhantomProvider>
   );
 }

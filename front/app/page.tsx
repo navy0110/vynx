@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { AddressType, useAccounts, useDisconnect, usePhantom } from "@phantom/react-sdk";
+import { AddressType, useAccounts, usePhantom } from "@phantom/react-sdk";
+import { useWalletSession } from "@/components/WalletSessionProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -40,13 +41,16 @@ const sectionReveal = {
 
 export default function Home() {
   const router = useRouter();
+  const session = useWalletSession();
   const reduceMotion = useReducedMotion();
   const { isConnected, isLoading } = usePhantom();
-  const { disconnect, isDisconnecting, error: disconnectError } = useDisconnect();
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState('');
+  const sessionConnected = !!session.wallet;
   const accounts = useAccounts();
-  const wallet = isConnected
+  const wallet = session.wallet || (isConnected
     ? accounts?.find(account => account.addressType === AddressType.solana)?.address ?? ""
-    : "";
+    : "");
   const [card, setCard] = useState<{ wallet: string; alias: string } | null>(null);
   const hasCard = !!wallet && card?.wallet === wallet;
 
@@ -70,12 +74,27 @@ export default function Home() {
     return () => controller.abort();
   }, [wallet]);
 
-  const handleDisconnect = async () => {
+  const handleSignIn = async (alias?: string) => {
+    setIsDisconnecting(true); setDisconnectError('');
     try {
-      await disconnect();
-    } catch {
-      // The wallet SDK exposes the failure through disconnectError below.
-    }
+      await session.authenticate();
+      if (alias) {
+        const response = await fetch('/api/auth/session', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+        router.push(result.alias ? '/dashboard/mypage' : `/profile/buy-alias?${new URLSearchParams({ alias, next: '/dashboard/mypage' })}`);
+        router.refresh();
+      }
+    } catch (reason) { setDisconnectError(reason instanceof Error ? reason.message : 'Unable to sign in. Retry.'); }
+    finally { setIsDisconnecting(false); }
+  };
+
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true); setDisconnectError('');
+    try {
+      await session.logout();
+    } catch (reason) { setDisconnectError(reason instanceof Error ? reason.message : 'Unable to disconnect.'); }
+    finally { setIsDisconnecting(false); }
   };
 
   const focusAlias = () => {
@@ -100,14 +119,14 @@ export default function Home() {
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative">
               <Button
-                onClick={isConnected ? handleDisconnect : () => router.push("/auth/callback")}
+                onClick={sessionConnected ? handleDisconnect : () => void handleSignIn()}
                 disabled={isLoading || isDisconnecting}
-                aria-label={isConnected ? "Disconnect wallet" : "Connect wallet"}
+                aria-label={sessionConnected ? "Disconnect wallet" : "Connect wallet"}
                 className="h-10 rounded-xl border border-white/15 bg-white/5 px-4 text-xs font-bold tracking-wide text-white hover:bg-white/10 sm:px-6"
               >
-                {isDisconnecting ? "DISCONNECTING…" : isConnected ? "DISCONNECT" : "CONNECT"}
+                {isDisconnecting ? "DISCONNECTING…" : sessionConnected ? "DISCONNECT" : "CONNECT"}
               </Button>
-              {disconnectError && <p role="alert" className="absolute right-0 top-full mt-2 w-56 rounded-lg bg-black/90 p-3 text-xs text-red-300">Unable to disconnect wallet. Please try again.</p>}
+              {disconnectError && <p role="alert" className="absolute right-0 top-full mt-2 w-56 rounded-lg bg-black/90 p-3 text-xs text-red-300">{disconnectError}</p>}
             </div>
             <Button onClick={hasCard && card ? () => router.push(`/${encodeURIComponent(card.alias)}`) : focusAlias} className="h-10 rounded-xl bg-[#f5f5f5] px-4 text-xs font-black tracking-wide text-black shadow-[0_0_30px_rgba(255,255,255,0.06)] hover:bg-neutral-200 sm:px-6">{hasCard ? "MY CARD" : "GET CARD"}</Button>
           </div>
@@ -130,9 +149,9 @@ export default function Home() {
             <form className="mt-9 flex max-w-2xl flex-col gap-3 rounded-2xl border border-white/15 bg-black/35 p-2 backdrop-blur-xl sm:flex-row" onSubmit={(event) => {
               event.preventDefault();
               const alias = (event.currentTarget.elements.namedItem("alias") as HTMLInputElement)?.value.trim();
-              if (alias) router.push(`/auth/callback?alias=${encodeURIComponent(alias)}`);
+              if (alias) void handleSignIn(alias);
             }}>
-              <div className="flex min-w-0 flex-1 items-center px-4"><span className="mr-2 text-xl font-bold text-white/30">@</span><input id="alias" name="alias" type="text" required minLength={3} maxLength={32} placeholder="youralias" autoComplete="off" aria-label="Claim your alias" className="h-14 min-w-0 flex-1 rounded-md bg-transparent text-lg font-medium text-white outline-none placeholder:text-white/40 focus-visible:ring-1 focus-visible:ring-white/50" /></div>
+              <div className="flex min-w-0 flex-1 items-center px-4"><span className="mr-2 text-xl font-bold text-white/30">@</span><input id="alias" name="alias" type="text" required minLength={3} maxLength={30} placeholder="youralias" autoComplete="off" aria-label="Claim your alias" className="h-14 min-w-0 flex-1 rounded-md bg-transparent text-lg font-medium text-white outline-none placeholder:text-white/40 focus-visible:ring-1 focus-visible:ring-white/50" /></div>
               <Button type="submit" className="h-14 rounded-xl bg-[#f5f5f5] px-8 text-sm font-black tracking-wide text-black transition hover:scale-[1.02] hover:bg-neutral-200">CLAIM YOUR CARD →</Button>
             </form>
             <div className="mt-7 flex flex-wrap gap-x-7 gap-y-3 text-sm font-medium text-white/55 sm:text-base">
