@@ -6,7 +6,7 @@ export function claimErrorMessage(reason: unknown, stage: ClaimStage, paymentSen
   const error = reason && typeof reason === 'object' ? reason as { code?: unknown; message?: unknown } : {};
   const code = error.code;
   const message = typeof error.message === 'string' ? error.message : typeof reason === 'string' ? reason : '';
-  if (code === 'PRICE_CHANGED' || code === 'QUOTE_EXPIRED' || code === 'REGISTRATION_PENDING' || code === 'REGISTRY_MIGRATION_REQUIRED' || code === 'SPONSOR_UNAVAILABLE') return message;
+  if (code === 'WALLET_DEVNET_UNAVAILABLE' || code === 'PRICE_CHANGED' || code === 'QUOTE_EXPIRED' || code === 'REGISTRATION_PENDING' || code === 'REGISTRY_MIGRATION_REQUIRED' || code === 'SPONSOR_UNAVAILABLE') return message;
   const receipt = 'Keep your payment signature. Retry verification instead of paying again.';
   if (code === 'ALIAS_TAKEN') return paymentSent
     ? 'This alias was claimed before your payment could be registered. Keep your payment signature and contact support before making another payment.'

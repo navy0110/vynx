@@ -59,6 +59,27 @@ export async function installWallet(context: BrowserContext, keypair = Keypair.g
       off(event: string, listener: (...values: unknown[]) => void) { listeners.get(event)?.delete(listener); return provider; },
     };
     bridge.phantom = { solana: provider }; bridge.solana = provider;
+    // Keep mainnet first to reproduce the SDK default-chain bug. Production
+    // sends must explicitly select devnet rather than calling this SDK default.
+    const account = { address, publicKey: new Uint8Array(bytes), chains: ['solana:mainnet', 'solana:devnet'], features: ['solana:signAndSendTransaction'] };
+    const standardWallet = {
+      version: '1.0.0', name: 'Devnet test wallet', icon: 'data:image/png;base64,AA==',
+      chains: account.chains,
+      get accounts() { return connected ? [account] : []; },
+      features: { 'solana:signAndSendTransaction': { version: '1.0.0', supportedTransactionVersions: ['legacy'],
+        async signAndSendTransaction(input: { chain: string; transaction: Uint8Array }) {
+          if (input.chain !== 'solana:devnet') throw new Error('Wallet attempted to simulate on mainnet.');
+          const result = await provider.signAndSendTransaction({ serialize: () => input.transaction });
+          const alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+          let value = BigInt(0); for (const character of result.signature as string) value = value * BigInt(58) + BigInt(alphabet.indexOf(character));
+          const signature = new Uint8Array(64); for (let i = 63; i >= 0; i--) { signature[i] = Number(value % BigInt(256)); value /= BigInt(256); }
+          return [{ signature }];
+        },
+      } },
+    };
+    const register = (api: { register: (...wallets: unknown[]) => unknown }) => api.register(standardWallet);
+    window.addEventListener('wallet-standard:app-ready', event => register((event as CustomEvent).detail));
+    window.dispatchEvent(new CustomEvent('wallet-standard:register-wallet', { detail: register }));
   }, { address: keypair.publicKey.toBase58(), bytes: Array.from(keypair.publicKey.toBytes()) });
   return keypair;
 }

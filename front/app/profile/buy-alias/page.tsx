@@ -1,5 +1,6 @@
 'use client';
 
+import { sendDevnetTransaction } from '@/lib/devnet-wallet';
 import { Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -88,7 +89,6 @@ function BuyAliasContent() {
         setNotice('Preparing your devnet alias payment…');
         if (!currentQuote) throw new Error('Wait for the on-chain quote before claiming.');
         const payment = await post(`/api/actions/claim-alias?alias=${name}`, { account: session.connectedWallet, priceLamports: currentQuote.priceLamports, priceVersion: currentQuote.priceVersion });
-        await solana.switchNetwork('devnet');
         stage = 'send';
         setNotice('Approve the alias payment in Phantom…');
         const tx = Transaction.from(Uint8Array.from(atob(payment.transaction), character => character.charCodeAt(0)));
@@ -98,7 +98,7 @@ function BuyAliasContent() {
           reference = { wallet: session.connectedWallet, alias: name, signature: payment.signature };
           try { localStorage.setItem(key, JSON.stringify(reference)); } catch { /* In-memory recovery remains available. */ }
         }
-        const { signature } = await solana.signAndSendTransaction(tx);
+        const { signature } = await sendDevnetTransaction(tx, session.connectedWallet);
         reference = { wallet: session.connectedWallet, alias: name, signature };
         setPending(reference);
         try { localStorage.setItem(key, JSON.stringify(reference)); } catch { /* The signature remains visible for recovery. */ }
@@ -115,7 +115,7 @@ function BuyAliasContent() {
       const code = reason && typeof reason === 'object' && 'code' in reason ? reason.code : undefined;
       if (code === 'PRICE_CHANGED' || code === 'QUOTE_EXPIRED') { setQuote(null); setQuoteAttempt(previous => previous + 1); }
       const rejected = code === 4001 || code === '4001' || code === 'USER_CANCELLED' || (reason instanceof Error && /user rejected|cancelled|canceled/i.test(reason.message));
-      if (rejected || code === 'QUOTE_EXPIRED' || code === 'PAYMENT_FAILED') {
+      if (rejected || code === 'QUOTE_EXPIRED' || code === 'PAYMENT_FAILED' || code === 'WALLET_DEVNET_UNAVAILABLE') {
         reference = null; setPending(null);
         try { localStorage.removeItem(`vynx:claim:${session.connectedWallet}`); } catch { /* A failed transaction transferred no funds. */ }
       }

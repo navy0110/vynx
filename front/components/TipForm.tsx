@@ -1,5 +1,6 @@
 'use client';
 
+import { sendDevnetTransaction } from '@/lib/devnet-wallet';
 import { useState, type FormEvent } from 'react';
 import { Transaction } from '@solana/web3.js';
 import { useWalletSession } from '@/components/WalletSessionProvider';
@@ -42,10 +43,9 @@ function WalletTipForm({ alias, creatorWallet, enabled }: { alias: string; creat
         tipLamports(amount);
         setNotice('Preparing your devnet tip…');
         const payment = await post('/api/tips', { alias, amount });
-        await solana.switchNetwork('devnet');
         setNotice('Approve the transfer in Phantom…');
         const transaction = Transaction.from(Uint8Array.from(atob(payment.transaction), character => character.charCodeAt(0)));
-        const { signature } = await solana.signAndSendTransaction(transaction);
+        const { signature } = await sendDevnetTransaction(transaction, session.connectedWallet);
         sent = true;
         const reference = { signature, amount };
         setPending(reference);

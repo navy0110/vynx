@@ -39,7 +39,10 @@ Hosting needs its own secret configuration. No key material is returned by APIs.
 - The transaction contains bounded compute-budget instructions and the program's
   `register` instruction. It binds both PDAs, treasury, two signers, price/version,
   a 16-byte intent and an expiry 100 slots ahead. The browser adds the creator
-  signature while preserving the sponsor signature. Owner debit is the total
+  signature while preserving the sponsor signature. Wallet submission explicitly
+  requests `solana:devnet` through Wallet Standard; the SDK's extension
+  `switchNetwork` is a no-op and must not select the transaction cluster. Wallets
+  without a matching devnet-capable account fail before submission. Owner debit is the total
   quoted price; VYNX pays the network fee.
 - `POST /api/actions/claim-alias/confirm?alias=a` requires the same session/origin
   and the registration signature. It verifies the confirmed successful message

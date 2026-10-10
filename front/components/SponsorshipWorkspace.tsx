@@ -1,5 +1,6 @@
 'use client';
 
+import { sendDevnetTransaction } from '@/lib/devnet-wallet';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowDownLeft, ArrowUpRight, Inbox, RefreshCw, SlidersHorizontal, Sparkles } from 'lucide-react';
@@ -81,9 +82,8 @@ export default function SponsorshipWorkspace() {
     try { savedSignature = localStorage.getItem(`vynx-payment:${campaign.id}`); } catch { /* Optional recovery storage. */ }
     if (payment?.id === campaign.id || savedSignature) throw new Error('Ya enviaste un pago. Verifica su firma antes de volver a pagar.');
     const data = await signed('checkout', { id: campaign.id });
-    await solana.switchNetwork('devnet');
     const tx = Transaction.from(Uint8Array.from(atob(data.transaction), c => c.charCodeAt(0)));
-    const { signature } = await solana.signAndSendTransaction(tx);
+    const { signature } = await sendDevnetTransaction(tx, wallet);
     setPayment({ id: campaign.id, signature });
     // Persist only the recovery reference, never credentials or signing material.
     try { localStorage.setItem(`vynx-payment:${campaign.id}`, signature); } catch { /* Optional recovery storage. */ }
