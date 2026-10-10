@@ -5,6 +5,7 @@ import { Keypair } from '@solana/web3.js';
 import { createClient } from '@supabase/supabase-js';
 
 nextEnv.loadEnvConfig(process.cwd());
+assert.equal(process.env.VYNX_ALIAS_REGISTRY_ENABLED, 'false', 'This script seeds legacy database-only claims. Use test:e2e:registry to test on-chain ownership; do not run legacy fixtures against an active registry environment.');
 const base = process.env.TEST_APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
 const origin = new URL(process.env.NEXT_PUBLIC_APP_URL).origin;
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY);

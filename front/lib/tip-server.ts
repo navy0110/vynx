@@ -1,3 +1,4 @@
+import { assertRegistryOwnership } from './alias-registration';
 import { Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import { appDb } from '@/lib/app-db';
 import { publicCreator } from '@/lib/public-creator';
@@ -27,6 +28,7 @@ export async function confirmTip(alias: string, wallet: string, amount: string, 
   const { data: creator, error: creatorError } = await db.from('cards_users').select('id,wallet_address').eq('username', alias).maybeSingle();
   if (creatorError) throw new ApiError('Creator storage is unavailable.', 503);
   if (!creator) throw new ApiError('Creator not found.', 404);
+  await assertRegistryOwnership(creator.wallet_address, alias);
   const existing = async () => {
     const { data, error } = await db.from('tips').select('creator_id,payer,lamports,signature').eq('signature', signature).maybeSingle();
     if (error) throw new ApiError('Tip verification is temporarily unavailable. Please try again.', 503);

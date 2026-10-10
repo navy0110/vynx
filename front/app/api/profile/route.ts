@@ -1,3 +1,4 @@
+import { assertRegistryOwnership } from '@/lib/alias-registration';
 import { createClient } from '@supabase/supabase-js';
 import { PublicKey } from '@solana/web3.js';
 import { publicationFields } from '@/lib/creator-draft';
@@ -17,12 +18,13 @@ export async function GET(request: Request) {
       const owner = await requireWallet(request);
       const { data: profile, error } = await appDb().from('cards_users').select('*').eq('wallet_address', owner).maybeSingle();
       if (error) throw new ApiError('Unable to load your creator profile.', 503);
+      if (profile) await assertRegistryOwnership(owner, profile.username);
       return reply({ profile });
     } catch (reason) { return apiFailure(reason); }
   }
   try { new PublicKey(wallet); }
   catch { return reply({ error: 'A valid Solana address is required.' }, 400); }
-  if (alias && !/^[a-z0-9_]{3,30}$/.test(alias)) return reply({ error: 'Invalid alias.' }, 400);
+  if (alias && !/^[a-z0-9_]{1,30}$/.test(alias)) return reply({ error: 'Invalid alias.' }, 400);
 
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
@@ -35,8 +37,9 @@ export async function GET(request: Request) {
     if (alias) query = query.eq('username', alias);
     const { data: profile, error } = await query.maybeSingle();
     if (error) return reply({ error: 'Your profile could not be loaded. Please retry.' }, 503);
+    if (profile) await assertRegistryOwnership(wallet, profile.username);
     return reply({ profile });
-  } catch { return reply({ error: 'Your profile could not be loaded. Please retry.' }, 503); }
+  } catch (reason) { if (reason instanceof ApiError) return apiFailure(reason); return reply({ error: 'Your profile could not be loaded. Please retry.' }, 503); }
 }
 
 export async function PATCH(request: Request) {
@@ -53,6 +56,7 @@ export async function PATCH(request: Request) {
     if (ownerError) throw new ApiError('Profile storage is unavailable.', 503);
     if (!owner) throw new ApiError('Claim an alias before saving your creator card.', 409);
     if (owner.username !== design.alias) throw new ApiError('Use the alias purchased by your signed-in wallet.', 403);
+    await assertRegistryOwnership(wallet, design.alias);
     const { data: profile, error } = await db.from('cards_users').update({
       display_name: design.name, bio: design.bio, avatar_url: design.avatar, banner_url: design.cover,
       design, published: body.published, tips_enabled: body.tips_enabled,

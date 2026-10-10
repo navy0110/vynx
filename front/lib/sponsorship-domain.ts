@@ -31,7 +31,7 @@ export function httpsUrl(value: unknown, required = true): string {
 
 export function profileFields(data: SponsorPayload) {
   const alias = text(data.alias, 30).toLowerCase();
-  if (!/^[a-z0-9_]{3,30}$/.test(alias)) throw new Error('El alias requiere 3–30 letras, números o guiones bajos.');
+  if (!/^[a-z0-9_]{1,30}$/.test(alias)) throw new Error('El alias requiere 1–30 letras, números o guiones bajos.');
   const price = Number(data.price_cents);
   const days = Number(data.duration_days);
   if (!Number.isSafeInteger(price) || price < 100 || price > 1000000) throw new Error('El precio debe estar entre 1 y 10.000 USDC.');

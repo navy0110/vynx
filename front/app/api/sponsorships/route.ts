@@ -1,7 +1,9 @@
 import { authorize, checkout, issueChallenge, sponsorDb, verifyPayment } from '@/lib/sponsorship-server';
 import { profileFields, requestFields, text, type SponsorAction, type SponsorPayload, type SponsorRequest } from '@/lib/sponsorship-domain';
 import { publicationFields } from '@/lib/creator-draft';
-import { requireWallet } from '@/lib/wallet-session';
+import { assertRegistryOwnership } from '@/lib/alias-registration';
+import { registryEnabled } from '@/lib/alias-registry';
+import { ApiError, apiFailure, requireWallet } from '@/lib/wallet-session';
 import { validateClaimedAlias } from '@/lib/claimed-alias';
 
 export const runtime = 'nodejs';
@@ -12,18 +14,19 @@ const reply = (data: unknown, status = 200) => Response.json(data, { status, hea
 export async function GET(request: Request) {
   try {
     const alias = new URL(request.url).searchParams.get('alias');
-    if (!alias || !/^[a-z0-9_]{3,30}$/.test(alias)) return reply({ error: 'Alias inválido.' }, 400);
+    if (!alias || !/^[a-z0-9_]{1,30}$/.test(alias)) return reply({ error: 'Alias inválido.' }, 400);
     const db = sponsorDb();
     const { data: profile, error } = await db.from('sponsor_profiles').select('*').eq('alias', alias).maybeSingle();
     if (error) return reply({ error: 'No se pudo cargar el perfil. Revisa la configuración de patrocinios.' }, 503);
     if (!profile) return reply({ error: 'Este creador todavía no publicó su página.' }, 404);
+    await assertRegistryOwnership(profile.wallet, alias);
     const { data: ad, error: adError } = await db.from('sponsor_requests')
       .select('id,brand_name,headline,description,destination_url,ends_at,payment_signature')
       .eq('creator_wallet', profile.wallet).eq('status', 'active').lte('starts_at', new Date().toISOString())
       .gt('ends_at', new Date().toISOString()).maybeSingle();
     if (adError) return reply({ error: 'No se pudo cargar el espacio patrocinado.' }, 503);
     return reply({ profile, ad });
-  } catch { return reply({ error: 'Configura Supabase y aplica la migración de patrocinios.' }, 503); }
+  } catch (reason) { if (reason instanceof ApiError) return apiFailure(reason); return reply({ error: 'Configura Supabase y aplica la migración de patrocinios.' }, 503); }
 }
 
 export async function POST(request: Request) {
@@ -77,6 +80,7 @@ export async function POST(request: Request) {
       const alias = text(payload.alias, 30).toLowerCase();
       const { data: profile, error: lookupError } = await db.from('sponsor_profiles').select('*').eq('alias', alias).single();
       if (lookupError || !profile || !profile.accepting) return reply({ error: 'Este creador no está recibiendo solicitudes.' }, 409);
+      await assertRegistryOwnership(profile.wallet, alias);
       if (profile.wallet === wallet) return reply({ error: 'Usa una wallet de marca distinta a la del creador.' }, 400);
       const { count, error: countError } = await db.from('sponsor_requests').select('id', { count: 'exact', head: true }).eq('brand_wallet', wallet).eq('status', 'pending');
       if (countError) return reply({ error: 'No se pudo verificar la solicitud.' }, 503);
@@ -92,6 +96,12 @@ export async function POST(request: Request) {
     if (!/^[a-f0-9-]{36}$/i.test(id)) return reply({ error: 'Campaña inválida.' }, 400);
     const { data: campaign, error } = await db.from('sponsor_requests').select('*').eq('id', id).single();
     if (error || !campaign || (campaign.creator_wallet !== wallet && campaign.brand_wallet !== wallet)) return reply({ error: 'Campaña no encontrada.' }, 404);
+    if (registryEnabled()) {
+      const { data: creator, error: creatorError } = await db.from('sponsor_profiles').select('alias').eq('wallet', campaign.creator_wallet).maybeSingle();
+      if (creatorError) throw new ApiError('Unable to verify campaign ownership.', 503);
+      if (!creator) throw new ApiError('Creator profile not found.', 409);
+      await assertRegistryOwnership(campaign.creator_wallet, creator.alias);
+    }
     if (action === 'approve' || action === 'reject') {
       if (campaign.creator_wallet !== wallet) return reply({ error: 'Solo el creador puede revisar el anuncio.' }, 403);
       const { error: reviewError } = await db.rpc('review_sponsorship', { request_id: id, reviewer: wallet, decision: action === 'approve' ? 'approved' : 'rejected' });
@@ -108,6 +118,6 @@ export async function POST(request: Request) {
     if (activationError) return reply({ error: 'El pago no pudo activar la campaña. Conserva la firma y vuelve a verificarlo.' }, 409);
     return reply({ ok: true });
   } catch (error) {
-    return reply({ error: error instanceof Error ? error.message : 'No se pudo completar la operación.' }, 400);
+    return reply({ error: error instanceof Error ? error.message : 'No se pudo completar la operación.', ...(error instanceof ApiError && error.code ? { code: error.code } : {}) }, error instanceof ApiError ? error.status : 400);
   }
 }

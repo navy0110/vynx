@@ -2,24 +2,25 @@ import { CLAIM_PRICE_SOL } from './alias-network';
 
 export type ClaimStage = 'sign-in' | 'prepare' | 'send' | 'verify';
 
-export function claimErrorMessage(reason: unknown, stage: ClaimStage, paymentSent: boolean) {
+export function claimErrorMessage(reason: unknown, stage: ClaimStage, paymentSent: boolean, priceSol: string | number = CLAIM_PRICE_SOL, sponsored = false) {
   const error = reason && typeof reason === 'object' ? reason as { code?: unknown; message?: unknown } : {};
   const code = error.code;
   const message = typeof error.message === 'string' ? error.message : typeof reason === 'string' ? reason : '';
+  if (code === 'PRICE_CHANGED' || code === 'QUOTE_EXPIRED' || code === 'REGISTRATION_PENDING' || code === 'REGISTRY_MIGRATION_REQUIRED' || code === 'SPONSOR_UNAVAILABLE') return message;
   const receipt = 'Keep your payment signature. Retry verification instead of paying again.';
   if (code === 'ALIAS_TAKEN') return paymentSent
     ? 'This alias was claimed before your payment could be registered. Keep your payment signature and contact support before making another payment.'
     : 'This alias is already taken. Choose a different alias and try again.';
   if (code === 'WALLET_HAS_ALIAS') return 'Your wallet already owns an alias. Open your creator card from the dashboard to edit it.';
-  if (code === 'INSUFFICIENT_PAYMENT') return `The payment is below the required ${CLAIM_PRICE_SOL} devnet SOL. Keep your payment signature and contact support before making another payment.`;
-  if (code === 'PAYMENT_FAILED') return 'The transaction failed on Solana. Check your devnet SOL balance, including network fees, then try claiming again.';
+  if (code === 'INSUFFICIENT_PAYMENT') return `The payment is below the required ${priceSol} devnet SOL. Keep your payment signature and contact support before making another payment.`;
+  if (code === 'PAYMENT_FAILED') return sponsored ? 'The registration failed on Solana. VYNX paid the network fee. Refresh the price and retry after the earlier transaction expires.' : 'The transaction failed on Solana. Check your devnet SOL balance, including network fees, then try claiming again.';
   if (code === 'PAYMENT_PENDING') return `Solana has not confirmed the payment yet. ${receipt}`;
   if (code === 'PAYMENT_MISMATCH' || code === 'INVALID_SIGNATURE') return paymentSent
     ? 'The payment could not be verified for this wallet and alias. Keep your payment signature and contact support before making another payment.'
     : 'The payment signature could not be verified. Reconnect the correct wallet and try again.';
   if (paymentSent) return `Your payment was sent, but verification did not finish. ${receipt}`;
   if (code === 'INSUFFICIENT_FUNDS' || /insufficient (funds|balance|lamports)|not enough (sol|funds)|attempt to debit an account but found no record of a prior credit/i.test(message)) {
-    return `Add devnet SOL to your connected wallet to cover ${CLAIM_PRICE_SOL} SOL plus network fees, then try again.`;
+    return `Add devnet SOL to your connected wallet to cover ${priceSol} SOL${sponsored ? '. VYNX pays network fees' : ' plus network fees'}, then try again.`;
   }
   if (code === 'USER_CANCELLED' || /cancelled|canceled|popup closed|window closed/i.test(message)) return 'Wallet approval was cancelled. Try again when you are ready to approve it in Phantom.';
   // Phantom uses 4001 for user rejection: https://docs.phantom.com/solana/errors

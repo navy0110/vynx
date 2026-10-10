@@ -34,7 +34,7 @@ test('availability normalizes aliases and returns only the alias and availabilit
 });
 
 test('invalid, reserved and missing aliases consume quota without a profile lookup', async () => {
-  for (const input of ['a', 'admin', 'bad-name', 'x'.repeat(31), '']) {
+  for (const input of ['!', 'admin', 'bad-name', 'x'.repeat(31), '']) {
     const db = database();
     const response = await aliasAvailability(request(input), db, 'test-secret', false);
     assert.equal(response.status, 400);

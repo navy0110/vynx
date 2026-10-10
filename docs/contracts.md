@@ -1,28 +1,30 @@
 # MVP alias ownership decision
 
-**Status:** accepted for the MVP.
+**Status:** implemented for new devnet claims; registry enabled by default.
 
-**Planned revision (October 9, 2026):** move alias ownership to a VYNX
-on-chain registry with fixed SOL tiers approximating a logarithmic USD curve:
-0.92 SOL for one character down to 0.01 SOL for 5–30 characters,
-configurable on-chain by an admin authority chosen by the deployer. See the
-[registration policy](alias-registration-policy.md) for pricing, reservations,
-abuse controls, and migration requirements. The new Anchor program is deployed and smoke-tested on devnet; see
-[chain/](../chain/README.md) for the program address and transaction evidence.
-Frontend integration and ownership cutover are pending. The decision below
-describes the current application.
+The frontend/API uses the deployed VYNX Anchor registry at
+`AxQxAgndT6ziUr3FBNafhJzF4PpniGpMX4fVRXXmh5y8`. The program is the source
+of alias ownership. Supabase stores profiles, chain receipts and registration
+intents. Both the canonical alias PDA and wallet owner-index PDA must agree
+before editing, publishing, resolving a creator or confirming registration.
 
-Supabase Postgres is the sole authoritative source of alias ownership. The
-`public.cards_users` table enforces unique wallet addresses and usernames. A
-claim is accepted only after the API verifies its Solana devnet payment; that
-verification is implemented in Milestone 2.
+Prices come from the config PDA: initially 0.92, 0.53, 0.30, 0.14 and 0.01 SOL
+for lengths 1, 2, 3, 4 and 5–30. The configured administrator can change them.
+Creator payments include account rent; a separate VYNX sponsor pays network
+fees. Authenticated, same-origin preparation binds the displayed price/version,
+program, accounts, expiry and random intent to a simulated registration message.
+The server signs only messages it builds. Confirmation compares the actual
+transaction message with the durable intent and verifies both ownership PDAs.
+Plain treasury transfers cannot establish registry ownership.
 
-The MVP does not invoke an Anchor program or use PDAs for alias ownership. The
-previous Anchor and loose Rust contract prototypes were removed in Milestone 0
-because retaining a second ownership model creates ambiguous state and a
-possible split-brain claim result. Those sources remain recoverable from Git
-history (before Milestone 0).
+Existing database-only claims reserve their names and wallet associations, but
+cannot authorize editing or public resolution until migrated. Migration remains
+a separate pending task; existing owners must not pay again. See the
+[registration policy](alias-registration-policy.md).
 
-The planned registry cutover must follow the migration policy and make the
-program the sole ownership authority. Supabase will remain a profile store and
-chain index after that cutover.
+Apply migration `006_alias_registry.sql` and configure the server-only sponsor
+key before serving new claims. No automatic legacy fallback occurs on missing
+configuration. `VYNX_ALIAS_REGISTRY_ENABLED=false` retains the old flow solely
+for explicit compatibility testing or controlled rollback; never mix ownership
+modes across active instances. See [frontend integration](alias-registry-integration.md)
+and [chain deployment evidence](../chain/README.md).

@@ -36,7 +36,9 @@ test('SOL confirmation binds signer, operation, amount, recipient and actual rec
 });
 test('creator aliases normalize consistently and cannot collide with application routes', () => {
   assert.equal(normalizeAlias(' @Alice_1 '),'alice_1');
-  for (const alias of ['aa','a'.repeat(31),'api','dashboard','auth','../alice','a-b',null]) assert.throws(() => normalizeAlias(alias));
+  assert.equal(normalizeAlias('a'), 'a');
+  assert.equal(normalizeAlias('aa'), 'aa');
+  for (const alias of ['','a'.repeat(31),'api','dashboard','auth','../alice','a-b',null]) assert.throws(() => normalizeAlias(alias));
 });
 test('sign-in destinations cannot redirect to an external website', () => {
   assert.equal(safeDestination('/dashboard/mypage?tab=links'),'/dashboard/mypage?tab=links');

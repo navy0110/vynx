@@ -151,7 +151,7 @@ export default function Home() {
               const alias = (event.currentTarget.elements.namedItem("alias") as HTMLInputElement)?.value.trim();
               if (alias) void handleSignIn(alias);
             }}>
-              <div className="flex min-w-0 flex-1 items-center px-4"><span className="mr-2 text-xl font-bold text-white/30">@</span><input id="alias" name="alias" type="text" required minLength={3} maxLength={30} placeholder="youralias" autoComplete="off" aria-label="Claim your alias" className="h-14 min-w-0 flex-1 rounded-md bg-transparent text-lg font-medium text-white outline-none placeholder:text-white/40 focus-visible:ring-1 focus-visible:ring-white/50" /></div>
+              <div className="flex min-w-0 flex-1 items-center px-4"><span className="mr-2 text-xl font-bold text-white/30">@</span><input id="alias" name="alias" type="text" required minLength={1} maxLength={30} placeholder="youralias" autoComplete="off" aria-label="Claim your alias" className="h-14 min-w-0 flex-1 rounded-md bg-transparent text-lg font-medium text-white outline-none placeholder:text-white/40 focus-visible:ring-1 focus-visible:ring-white/50" /></div>
               <Button type="submit" className="h-14 rounded-xl bg-[#f5f5f5] px-8 text-sm font-black tracking-wide text-black transition hover:scale-[1.02] hover:bg-neutral-200">CLAIM YOUR CARD →</Button>
             </form>
             <div className="mt-7 flex flex-wrap gap-x-7 gap-y-3 text-sm font-medium text-white/55 sm:text-base">

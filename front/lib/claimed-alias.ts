@@ -1,6 +1,8 @@
+import { assertRegistryOwnership } from './alias-registration';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export async function validateClaimedAlias(db: SupabaseClient, wallet: string, alias: string) {
+  await assertRegistryOwnership(wallet, alias);
   const results = await Promise.all([
     db.from('cards_users').select('username').eq('wallet_address', wallet).maybeSingle(),
     db.from('cards_users').select('wallet_address').eq('username', alias).maybeSingle(),

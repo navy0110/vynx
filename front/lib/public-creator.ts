@@ -1,3 +1,5 @@
+import { ApiError } from './wallet-session';
+import { assertRegistryOwnership } from './alias-registration';
 import { appDb } from '@/lib/app-db';
 import { normalizeAlias } from '@/lib/alias';
 import { draftFromProfile, type CreatorDraft } from '@/lib/creator-draft';
@@ -11,6 +13,8 @@ export async function publicCreator(value: string): Promise<PublicCreator | null
     .eq('username', alias).eq('published', true).maybeSingle();
   if (error) throw new Error('Creator storage is unavailable.');
   if (!data) return null;
+  try { await assertRegistryOwnership(data.wallet_address, alias); }
+  catch (reason) { if (reason instanceof ApiError && reason.code === 'REGISTRY_MIGRATION_REQUIRED') return null; throw reason; }
   const design = draftFromProfile({ alias, display_name: data.display_name || alias, bio: data.bio || '', design: data.design });
   return { id: data.id, alias, wallet: data.wallet_address, tipsEnabled: data.tips_enabled, design };
 }

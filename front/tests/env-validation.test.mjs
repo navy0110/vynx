@@ -64,3 +64,15 @@ test("rejects placeholders, malformed values, and public secrets", () => {
     assert.ok(errors.some(error => error.includes(key) && error.includes("public NEXT_PUBLIC_ prefix")));
   }
 });
+
+test('registry configuration requires one private sponsor key source and a bounded integer budget', () => {
+  assert.deepEqual(validateEnvironment({ ...validEnvironment, VYNX_ALIAS_REGISTRY_ENABLED: 'true', VYNX_ALIAS_SPONSOR_KEYPAIR_PATH: '/tmp/sponsor.json' }), []);
+  for (const env of [
+    { VYNX_ALIAS_REGISTRY_ENABLED: 'maybe' },
+    { VYNX_ALIAS_REGISTRY_ENABLED: 'true' },
+    { VYNX_ALIAS_REGISTRY_ENABLED: 'true', VYNX_ALIAS_SPONSOR_KEYPAIR_PATH: '/tmp/sponsor.json', VYNX_ALIAS_SPONSOR_SECRET_KEY: '[0]' },
+    { VYNX_ALIAS_SPONSOR_DAILY_BUDGET_LAMPORTS: '-1' },
+    { VYNX_ALIAS_SPONSOR_DAILY_BUDGET_LAMPORTS: '1.5' },
+    { NEXT_PUBLIC_SPONSOR_KEYPAIR_PATH: '/tmp/sponsor.json' },
+  ]) assert(validateEnvironment({ ...validEnvironment, ...env }).length > 0);
+});

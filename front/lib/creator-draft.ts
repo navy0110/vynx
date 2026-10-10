@@ -58,7 +58,7 @@ export function draftFromProfile(profile: { alias: string; display_name: string;
   return { ...draft, alias: profile.alias, name: profile.display_name, bio: profile.bio };
 }
 export function validateDraft(draft: CreatorDraft): string | null {
-  if (!/^[a-z0-9_]{3,30}$/.test(draft.alias)) return 'El alias debe tener entre 3 y 30 letras, números o guiones bajos.';
+  if (!/^[a-z0-9_]{1,30}$/.test(draft.alias)) return 'El alias debe tener entre 1 y 30 letras, números o guiones bajos.';
   if (!draft.name.trim()) return 'Agrega tu nombre de creador.';
   if (draft.links.some(link => !link.title.trim() || !safeLink(link.url))) return 'Completa el título y un enlace HTTPS válido en cada enlace.';
   if (Object.values(draft.socials).some(url => url && !safeLink(url))) return 'Usa enlaces HTTPS válidos en tus redes sociales.';

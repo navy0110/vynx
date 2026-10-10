@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: front/package-lock.json
       - run: npm ci
@@ -34,6 +34,16 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build registry for frontend integration tests
+        run: |
+          curl -fsSL https://release.anza.xyz/v4.1.2/install -o /tmp/agave-install.sh
+          sh /tmp/agave-install.sh --no-modify-path v4.1.2
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          npm ci --prefix ../chain
+          cd ../chain
+          cargo build-sbf --tools-version v1.57 --arch v3
+      - run: npm run test:e2e:registry
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

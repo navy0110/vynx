@@ -1,3 +1,5 @@
+import { aliasPda, REGISTRY_PROGRAM, registryEnabled } from './alias-registry';
+import { registryConnection } from './alias-registration';
 import { createHmac } from 'node:crypto';
 import { isIP } from 'node:net';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -29,6 +31,12 @@ export async function aliasAvailability(request: Request, db: SupabaseClient, se
     catch (reason) { return Response.json({ error: reason instanceof Error ? reason.message : 'Enter a valid alias.' }, { status: 400, headers }); }
     const { data, error } = await db.from('cards_users').select('username').eq('username', alias).maybeSingle();
     if (error) return unavailable();
-    return Response.json({ alias, available: data === null }, { headers });
+    let available = data === null;
+    if (available && registryEnabled()) {
+      const connection = await registryConnection();
+      const info = await connection.getAccountInfo(aliasPda(alias), 'confirmed');
+      available = !info?.owner.equals(REGISTRY_PROGRAM);
+    }
+    return Response.json({ alias, available }, { headers });
   } catch { return unavailable(); }
 }

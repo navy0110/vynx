@@ -1,3 +1,4 @@
+import { assertRegistryOwnership } from '@/lib/alias-registration';
 import { NextResponse } from 'next/server';
 import { appDb } from '@/lib/app-db';
 import { apiFailure, ApiError, assertOrigin, cookieOptions, NONCE_COOKIE, readSession, requestCookie, SESSION_COOKIE, sessionHash, verifySignIn } from '@/lib/wallet-session';
@@ -10,6 +11,8 @@ export async function GET(request: Request) {
       const { data, error } = await appDb().from('cards_users').select('username').eq('wallet_address', wallet).maybeSingle();
       if (error) throw new ApiError('Unable to load your alias.', 503);
       alias = data?.username ?? null;
+      // Legacy reservations remain visible for migration, but cannot authorize edits.
+      if (alias) { try { await assertRegistryOwnership(wallet, alias); } catch (reason) { if (!(reason instanceof ApiError) || reason.code !== 'REGISTRY_MIGRATION_REQUIRED') throw reason; } }
     }
     return NextResponse.json({ wallet, alias }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (reason) { return apiFailure(reason); }

@@ -67,11 +67,15 @@ export function validateEnvironment(env) {
   }
 
   const leakedSecret = Object.keys(env).find(
-    (key) => key.startsWith("NEXT_PUBLIC_") && /SUPABASE|SECRET|SERVICE_ROLE|PRIVATE_KEY/.test(key)
+    (key) => key.startsWith("NEXT_PUBLIC_") && /SUPABASE|SECRET|SERVICE_ROLE|PRIVATE_KEY|KEYPAIR/.test(key)
   );
   if (leakedSecret) {
     errors.push(`${leakedSecret} looks like a secret but uses the public NEXT_PUBLIC_ prefix.`);
   }
 
+  if (env.VYNX_ALIAS_REGISTRY_ENABLED && !['true', 'false'].includes(env.VYNX_ALIAS_REGISTRY_ENABLED)) errors.push('VYNX_ALIAS_REGISTRY_ENABLED must be true or false.');
+  if (env.VYNX_ALIAS_REGISTRY_ENABLED === 'true' && !!env.VYNX_ALIAS_SPONSOR_SECRET_KEY === !!env.VYNX_ALIAS_SPONSOR_KEYPAIR_PATH) errors.push('Configure exactly one server-only sponsor key source.');
+  const budget = env.VYNX_ALIAS_SPONSOR_DAILY_BUDGET_LAMPORTS;
+  if (budget && (!/^[0-9]+$/.test(budget) || !Number.isSafeInteger(Number(budget)) || Number(budget) < 1)) errors.push('VYNX_ALIAS_SPONSOR_DAILY_BUDGET_LAMPORTS must be a positive safe integer.');
   return errors;
 }

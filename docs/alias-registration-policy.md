@@ -90,11 +90,11 @@ Provide two-step admin rotation: the current admin nominates a non-default pendi
 
 ## Migration and release requirements
 
-Keep the current flow authoritative until a defined cutover. Pause new claims during migration, reconcile verified Supabase claims, and preserve existing canonical alias/owner pairs without charging them again. Owner signatures or a narrowly scoped migration instruction are required; VYNX funds migration costs. Publish the migration rules and program address before cutover.
+New claims now use the registry by default, as explicitly selected for the devnet integration. Existing database-only claims reserve their names and wallet associations but cannot authorize edits or public resolution. Reconcile verified Supabase claims, and preserve existing canonical alias/owner pairs without charging them again. Owner signatures or a narrowly scoped migration instruction are required; VYNX funds migration costs. Publish the migration rules and program address before cutover.
 
 After cutover, Supabase stores profiles and an index of chain ownership. Database rows alone cannot establish ownership. Verify the expected program owner, PDA derivations, discriminator/version, canonical alias, owner wallet, and owner index from confirmed chain state before granting editing access. Background indexing must reconcile chain changes; old treasury payments must not create new registry ownership.
 
-Validate the complete flow on devnet before enabling mainnet. Devnet charges are test SOL. The Anchor registry is implemented in `chain/` and passes local signed-transaction runtime tests. Devnet deployment status and usage are documented in `chain/README.md`. Production sponsorship controls, frontend integration, independent security review, migration tests, and mainnet release remain outstanding. This policy is not proof of application cutover.
+Validate the complete flow on devnet before enabling mainnet. Devnet charges are test SOL. The Anchor registry is implemented in `chain/` and passes local signed-transaction runtime tests. Devnet deployment status and usage are documented in `chain/README.md`. Frontend/API integration and durable sponsorship controls are implemented; apply migration 006 and configure the server-only sponsor secret on the serving environment. Existing-claim migration, independent security review and mainnet release remain outstanding. See [integration instructions](alias-registry-integration.md).
 
 ## Technical references
 

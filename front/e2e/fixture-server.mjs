@@ -5,7 +5,8 @@ import bs58 from 'bs58';
 
 const MEMO = 'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr';
 const GENESIS = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
-export function fixtureServer(databaseUrl) {
+export async function fixtureServer(databaseUrl, registryOptions) {
+  const registry = registryOptions ? (await import('./registry-fixture.mjs')).registryFixture(registryOptions) : null;
   const ledger = new Map();
   const delays = new Map();
   let slot = 1;
@@ -25,11 +26,18 @@ export function fixtureServer(databaseUrl) {
         for (const name of ['content-type', 'content-range', 'preference-applied', 'range-unit']) if (result.headers.has(name)) response.setHeader(name, result.headers.get(name));
         response.end(Buffer.from(await result.arrayBuffer())); return;
       }
+      if (request.url === '/test/registry' && registry) {
+        response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify(registry.control(JSON.parse(raw)))); return;
+      }
       if (request.url === '/test/submit') {
         const body = JSON.parse(raw);
         const tx = Transaction.from(Buffer.from(body.transaction, 'base64'));
         if (!tx.verifySignatures()) throw new Error('Test wallet submitted an unsigned transaction.');
         const signature = bs58.encode(tx.signature);
+        if (registry && tx.instructions.some(ix => ix.programId.toBase58() === 'AxQxAgndT6ziUr3FBNafhJzF4PpniGpMX4fVRXXmh5y8')) {
+          ledger.set(signature, registry.submit(tx)); delays.set(signature, body.delay ?? 0);
+          response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ signature })); return;
+        }
         const message = tx.compileMessage();
         const keys = message.accountKeys;
         const pre = keys.map(() => 1_000_000_000);
@@ -51,6 +59,10 @@ export function fixtureServer(databaseUrl) {
       }
       const rpc = JSON.parse(raw);
       let result;
+      const registryResult = registry?.rpc(rpc.method, rpc.params);
+      if (registryResult !== undefined) {
+        response.setHeader('Content-Type', 'application/json'); response.end(JSON.stringify({ jsonrpc: '2.0', id: rpc.id, result: registryResult })); return;
+      }
       switch (rpc.method) {
         case 'getGenesisHash': result = GENESIS; break;
         case 'getLatestBlockhash': result = { context: { slot }, value: { blockhash: Keypair.generate().publicKey.toBase58(), lastValidBlockHeight: 100000 } }; break;
