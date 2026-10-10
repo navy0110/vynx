@@ -8,7 +8,7 @@ import { useWalletSession } from "@/components/WalletSessionProvider";
 
 const navigation = [
   { label: "Resumen", icon: House, href: "/dashboard" },
-  { label: "Mi página", icon: PanelTop, href: "/dashboard/mypage" },
+  { label: "Mi página", icon: PanelTop, href: "/dashboard/card" },
   { label: "Patrocinios", icon: Sparkles, href: "/dashboard/sponsorships" },
 ];
 export function Sidebar({ creatorAlias }: { creatorAlias?: string }) {

@@ -38,7 +38,7 @@ try {
   docker(['run', '-d', '--name', postgres, '--network', network, '-e', `POSTGRES_PASSWORD=${localPassword}`, 'postgres:17-alpine']);
   let ready = false;
   for (let attempt = 0; attempt < 60; attempt++) {
-    if (spawnSync('docker', ['exec', postgres, 'pg_isready', '-U', 'postgres']).status === 0) { ready = true; break; }
+    if (spawnSync('docker', ['exec', postgres, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres']).status === 0) { ready = true; break; }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   if (!ready) throw new Error('Test Postgres did not become ready.');

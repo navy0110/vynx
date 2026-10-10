@@ -41,6 +41,6 @@ test('creator aliases normalize consistently and cannot collide with application
   for (const alias of ['','a'.repeat(31),'api','dashboard','auth','../alice','a-b',null]) assert.throws(() => normalizeAlias(alias));
 });
 test('sign-in destinations cannot redirect to an external website', () => {
-  assert.equal(safeDestination('/dashboard/mypage?tab=links'),'/dashboard/mypage?tab=links');
+  assert.equal(safeDestination('/dashboard/card?tab=links'),'/dashboard/card?tab=links');
   for (const url of ['//attacker.example','https://attacker.example','/\\attacker.example','/\t/attacker.example','/\n/attacker.example',null]) assert.equal(safeDestination(url),'/dashboard');
 });

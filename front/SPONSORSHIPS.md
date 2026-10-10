@@ -39,7 +39,7 @@ The sponsorship payment service deliberately uses `https://api.devnet.solana.com
 
 ## Publicar el diseño del creador
 
-Aplica las migraciones 001–004 en orden. El editor `/dashboard/mypage` carga y guarda el diseño de `cards_users` con una sesión de wallet verificada. El alias comprado es de solo lectura y no necesitas crear una oferta de patrocinio para publicar tu Creator Card. La página pública del creador está en `/<alias>` y las ofertas de patrocinio mantienen `/creators/<alias>`.
+Aplica las migraciones 001–004 en orden. El editor `/dashboard/card` carga y guarda el diseño de `cards_users` con una sesión de wallet verificada. El alias comprado es de solo lectura y no necesitas crear una oferta de patrocinio para publicar tu Creator Card. La página pública del creador está en `/<alias>` y las ofertas de patrocinio mantienen `/creators/<alias>`.
 
 La migración 004 conserva los diseños publicados de patrocinios cuando la wallet también tiene un alias comprado. Las imágenes raster pequeñas se guardan dentro del JSON del perfil (máximo 1 MB por imagen y 3 MB por solicitud). Las condiciones de campañas, precios y duraciones siguen en las tablas de patrocinio.
 

@@ -29,7 +29,7 @@ export function CreatorPublicView({ profile, ad, design, preview = false, onRequ
 
   return <main className={`min-h-screen px-5 py-6 sm:px-8 ${light ? 'bg-[#f5f5f7] text-zinc-900' : 'bg-[#07070a] text-white'}`}>
     <div className="mx-auto max-w-6xl">
-      <nav aria-label="Navegación de la página pública" className="mb-8 flex flex-wrap items-center justify-between gap-4"><BrandLogo light={light} /><div className="flex flex-wrap items-center gap-4">{preview ? <Link href="/dashboard/mypage" className="inline-flex items-center gap-2 text-sm opacity-60"><ArrowLeft size={15} />Volver al editor</Link> : <><Link href="/dashboard/sponsorships" className="text-xs opacity-60">Mis patrocinios ↗</Link><SponsorshipWalletControl /></>}</div></nav>
+      <nav aria-label="Navegación de la página pública" className="mb-8 flex flex-wrap items-center justify-between gap-4"><BrandLogo light={light} /><div className="flex flex-wrap items-center gap-4">{preview ? <Link href="/dashboard/card" className="inline-flex items-center gap-2 text-sm opacity-60"><ArrowLeft size={15} />Volver al editor</Link> : <><Link href="/dashboard/sponsorships" className="text-xs opacity-60">Mis patrocinios ↗</Link><SponsorshipWalletControl /></>}</div></nav>
       {preview && <p role="status" className="mb-6 rounded-xl border border-violet-400/30 bg-violet-400/10 p-4 text-sm leading-6">Vista previa local · solo tú ves este borrador en este navegador. No está publicado y no permite enviar propuestas. El precio se configura en Patrocinios.</p>}
       <div className="grid gap-7 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div className="min-w-0 space-y-6">
@@ -57,7 +57,7 @@ export function CreatorPublicView({ profile, ad, design, preview = false, onRequ
           </form>}
           <p className="mt-5 flex items-start gap-2 text-[10px] leading-5 opacity-45"><ShieldCheck size={14} className="mt-0.5 shrink-0" />Puedes explorar sin wallet. Conectarla permite firmar tu propuesta; el pago se realiza después de la aprobación.</p>
         </section>
-      </div><footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-current/10 py-6 text-xs opacity-40"><p>Un espacio propio. Una comunidad conectada.</p><Link href="/dashboard/mypage" className="inline-flex items-center gap-1">Crea tu espacio en Vynx<Link2 size={12} /></Link></footer>
+      </div><footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-current/10 py-6 text-xs opacity-40"><p>Un espacio propio. Una comunidad conectada.</p><Link href="/dashboard/card" className="inline-flex items-center gap-1">Crea tu espacio en Vynx<Link2 size={12} /></Link></footer>
     </div>
   </main>;
 }

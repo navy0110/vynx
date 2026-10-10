@@ -22,12 +22,12 @@ const confirm = (page: Page, owner: Keypair, alias: string, signature: string) =
 
 test('browser registers a one-character alias with sponsorship, publishes and recovers confirmation', async ({ browser }) => {
   const context = await browser.newContext(); const owner = await installWallet(context); const page = await context.newPage();
-  await signIn(page, '/dashboard/mypage'); await expect(page).toHaveURL(/profile\/buy-alias/);
+  await signIn(page, '/dashboard/card'); await expect(page).toHaveURL(/profile\/buy-alias/);
   await page.getByLabel('Alias', { exact: true }).fill('q');
   await expect(page.getByRole('button', { name: 'Claim alias — 0.92 SOL' })).toBeEnabled();
   await expect(page.getByText(/VYNX pays network fees/)).toBeVisible();
   await page.getByRole('button', { name: 'Claim alias — 0.92 SOL' }).click();
-  await expect(page).toHaveURL(/dashboard\/mypage/);
+  await expect(page).toHaveURL(/dashboard\/card/);
   await page.getByLabel('Nombre de creador').fill('Registry creator');
   await page.getByRole('button', { name: 'Guardar y publicar', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: /Diseño publicado/ })).toBeVisible();
@@ -85,7 +85,7 @@ test('authentication, stale quotes, failed transactions and expired intent recov
 test('old database-only claims reserve names and block edits until migration', async ({ browser }) => {
   const context = await browser.newContext(); const owner = await installWallet(context); const page = await context.newPage();
   await db().from('cards_users').insert({ username: 'legacy_registry', wallet_address: owner.publicKey.toBase58() });
-  await signIn(page, '/dashboard/mypage');
+  await signIn(page, '/dashboard/card');
   await expect(page.getByRole('alert').filter({ hasText: /migration/ }).first()).toBeVisible();
   const profile = await page.request.get('/api/profile'); expect(profile.status()).toBe(409); expect((await profile.json()).code).toBe('REGISTRY_MIGRATION_REQUIRED');
   await context.close();
@@ -98,11 +98,11 @@ test('broadcast intent survives lost browser storage and a profile-indexing outa
   // No confirmation/indexing yet; a fresh authenticated browser must discover
   // the successfully broadcast intent without receiving the owner private key.
   const fresh = await browser.newContext(); await installWallet(fresh, owner); const recovery = await fresh.newPage();
-  await signIn(recovery, '/dashboard/mypage'); await expect(recovery).toHaveURL(/profile\/buy-alias/);
+  await signIn(recovery, '/dashboard/card'); await expect(recovery).toHaveURL(/profile\/buy-alias/);
   await expect(recovery.getByRole('button', { name: 'Verify alias payment' })).toBeEnabled();
   await expect(recovery.getByLabel('Alias', { exact: true })).toHaveValue('recover_registry');
   await recovery.getByRole('button', { name: 'Verify alias payment' }).click();
-  await expect(recovery).toHaveURL(/dashboard\/mypage/);
+  await expect(recovery).toHaveURL(/dashboard\/card/);
   expect(await recovery.evaluate(() => (window as unknown as { walletTestCalls: { transaction: number } }).walletTestCalls.transaction)).toBe(0);
   expect((await db().from('cards_users').select('tx_signature').eq('wallet_address', owner.publicKey.toBase58()).single()).data?.tx_signature).toBe(payment.signature);
   await Promise.all([context.close(), fresh.close()]);

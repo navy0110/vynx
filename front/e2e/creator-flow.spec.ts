@@ -20,7 +20,7 @@ test('creator claims, publishes, reloads, receives a verified tip and logs out',
   await expect(creatorPage).toHaveURL(/profile\/buy-alias/);
   await expect(creatorPage.getByLabel('Alias', { exact: true })).toHaveValue(alias);
   await creatorPage.getByRole('button', { name: /Claim alias/ }).click();
-  await expect(creatorPage).toHaveURL(/dashboard\/mypage/);
+  await expect(creatorPage).toHaveURL(/dashboard\/card/);
   await expect(creatorPage.getByLabel('Alias', { exact: true })).toHaveValue(alias);
   await expect(creatorPage.getByLabel('Alias', { exact: true })).toHaveAttribute('readonly', '');
   await creatorPage.getByLabel('Nombre de creador').fill('E2E creator');
@@ -82,7 +82,7 @@ test('creator claims, publishes, reloads, receives a verified tip and logs out',
   await expect(creatorPage).toHaveURL('/');
   expect((await creatorContext.cookies()).some(cookie => cookie.name === 'vynx-session')).toBe(false);
   const revoked = await creatorPage.request.get('/api/dashboard', { headers: { cookie: `vynx-session=${sessionCookie.value}` } }); expect(revoked.status()).toBe(401);
-  await creatorPage.goto('/dashboard/mypage'); await expect(creatorPage).toHaveURL('/dashboard/mypage'); await expect(creatorPage.getByRole('button', { name: 'Connect wallet', exact: true })).toBeVisible();
+  await creatorPage.goto('/dashboard/card'); await expect(creatorPage).toHaveURL('/dashboard/card'); await expect(creatorPage.getByRole('button', { name: 'Connect wallet', exact: true })).toBeVisible();
   await Promise.all([creatorContext.close(), visitorContext.close(), fanContext.close()]);
 });
 
@@ -135,8 +135,8 @@ test('profile images, socials and theme persist; unpublished pages stay private'
   const inserted = await db().from('cards_users').insert({ username: alias, wallet_address: owner.publicKey.toBase58() });
   expect(inserted.error).toBeNull();
   const page = await context.newPage();
-  await signIn(page, '/dashboard/mypage');
-  await expect(page).toHaveURL(/dashboard\/mypage/);
+  await signIn(page, '/dashboard/card');
+  await expect(page).toHaveURL(/dashboard\/card/);
   await expect(page.getByLabel('Nombre de creador')).toBeEnabled();
   await page.getByLabel('Nombre de creador').fill('Mobile creator');
   await page.getByLabel('Subir foto de perfil').setInputFiles('app/favicon-16x16.png');
@@ -170,7 +170,7 @@ test('profile images, socials and theme persist; unpublished pages stay private'
   expect(Object.keys((await exposed.json()).profile).sort()).toEqual(['username','wallet_address']);
   await db().from('wallet_sessions').update({ expires_at: new Date(Date.now()-1000).toISOString() }).eq('wallet', owner.publicKey.toBase58());
   expect((await page.request.get('/api/profile')).status()).toBe(401);
-  await page.goto('/dashboard/mypage'); await expect(page).toHaveURL('/dashboard/mypage'); await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toBeVisible();
+  await page.goto('/dashboard/card'); await expect(page).toHaveURL('/dashboard/card'); await expect(page.getByRole('button', { name: 'Connect wallet', exact: true })).toBeVisible();
   await Promise.all([context.close(), visitor.close()]);
 });
 
@@ -193,4 +193,16 @@ test('wallet authentication opens inline, handles rejection and retries without 
   await expect(page).toHaveURL(/profile\/buy-alias/);
   expect(await page.evaluate(() => (window as unknown as { walletTestCalls: { message: number } }).walletTestCalls.message)).toBe(2);
   await context.close();
+});
+
+test('old editor and preview URLs redirect to the card routes and preserve query parameters', async ({ request }) => {
+  for (const [oldPath, newPath] of [
+    ['/dashboard/mypage?tab=links', '/dashboard/card?tab=links'],
+    ['/dashboard/mypage/preview?source=bookmark', '/dashboard/card/preview?source=bookmark'],
+  ]) {
+    const response = await request.get(oldPath, { maxRedirects: 0 });
+    expect(response.status()).toBe(308);
+    const location = new URL(response.headers().location, process.env.E2E_BASE_URL);
+    expect(location.pathname + location.search).toBe(newPath);
+  }
 });

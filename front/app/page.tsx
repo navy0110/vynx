@@ -82,7 +82,7 @@ export default function Home() {
         const response = await fetch('/api/auth/session', { cache: 'no-store' });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error);
-        router.push(result.alias ? '/dashboard/mypage' : `/profile/buy-alias?${new URLSearchParams({ alias, next: '/dashboard/mypage' })}`);
+        router.push(result.alias ? '/dashboard/card' : `/profile/buy-alias?${new URLSearchParams({ alias, next: '/dashboard/card' })}`);
         router.refresh();
       }
     } catch (reason) { setDisconnectError(reason instanceof Error ? reason.message : 'Unable to sign in. Retry.'); }

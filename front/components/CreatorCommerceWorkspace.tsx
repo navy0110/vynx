@@ -8,7 +8,7 @@ export default function CreatorCommerceWorkspace({ kind }: { kind: "tickets" | "
   return <div className={styles.shell}>
     <Sidebar />
     <main className={styles.main}>
-      <header className={styles.top}><span>VYNX / PANEL DEL CREADOR</span><Link href="/dashboard/mypage" className={styles.demo}>Editar mi perfil ↗</Link></header>
+      <header className={styles.top}><span>VYNX / PANEL DEL CREADOR</span><Link href="/dashboard/card" className={styles.demo}>Editar mi perfil ↗</Link></header>
       <div className={styles.heading}><div>
         <p className={styles.eyebrow}>{tickets ? "EXPERIENCIAS Y BENEFICIOS" : "TU COMUNIDAD, MÁS CERCA"}</p>
         <h1>{tickets ? "Tickets NFT" : "Suscripciones"}</h1>

@@ -176,7 +176,7 @@ Goal: replace the dashboard mock with creator-owned data.
   - theme/accent color
   - published status
 - [x] **P0** Add ownership-safe server queries and update actions.
-- [x] **P0** Load the signed-in creator's real profile in `/dashboard/mypage`.
+- [x] **P0** Load the signed-in creator's real profile in `/dashboard/card`.
 - [x] **P0** Make “Save Changes” persist data and show saving, success, and error states.
 - [x] **P0** Keep the claimed username read-only in the editor.
 - [x] **P1** Add field length limits and URL validation.

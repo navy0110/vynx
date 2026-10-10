@@ -53,7 +53,7 @@ test('alias claim errors guide recovery and verification never resends the payme
     await expect(page.getByText(/Payment sent:/)).toBeVisible();
     await page.unroute('**/api/actions/claim-alias/confirm?*');
     await page.getByRole('button', { name: 'Verify alias payment' }).click();
-    await expect(page).toHaveURL(/dashboard\/mypage/);
+    await expect(page).toHaveURL(/dashboard\/card/);
     expect(await page.evaluate(() => (window as unknown as { walletTestCalls: { transaction: number } }).walletTestCalls.transaction)).toBe(calls);
   } finally {
     expect((await db.from('cards_users').delete().eq('wallet_address', otherWallet)).error).toBeNull();
