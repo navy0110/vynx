@@ -150,7 +150,10 @@ Goal: make alias purchase atomic, verifiable, and safe to retry.
 - [x] **P0** Handle the race where two wallets attempt to claim the same alias.
 - [x] **P1** Display actionable errors for rejected signature, insufficient payment, taken alias, RPC timeout, and user cancellation.
 - [x] **P1** Store claim cluster, amount, treasury, signature, and verification timestamp.
-- [ ] **P1** Decide whether the existing Anchor alias program is used in the MVP. If used, build its instruction instead of a plain treasury transfer and verify the PDA.
+- [x] **P1** Decide the on-chain registry direction: a new VYNX Anchor registry is deployed and smoke-tested on devnet; the current app stays on Supabase until the planned cutover.
+- [x] **P1** Implement registry instructions, canonical alias/owner PDAs, configurable SOL tiers, admin controls and sponsor authorization; verify signed transactions locally and on devnet. See [chain/README.md](chain/README.md).
+- [ ] **P1** Integrate the registry into the frontend/API: read on-chain pricing, sponsor and build registration instructions, support 1–30 character names, and verify both ownership PDAs.
+- [ ] **P0** Reconcile and migrate existing verified claims before changing the ownership authority; stop accepting plain treasury payments at cutover.
 
 Acceptance criteria:
 

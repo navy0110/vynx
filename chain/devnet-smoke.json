@@ -1,0 +1,16 @@
+{
+  "network": "devnet",
+  "programId": "AxQxAgndT6ziUr3FBNafhJzF4PpniGpMX4fVRXXmh5y8",
+  "signature": "27n4ofVrCyLTcY5MtTAh6Ffftz23z3VHBHY3X4hrrx5SQhC8kJJPJ5tLHE1MiutWyQvoc9PXwSzZSKsftEp25srT",
+  "alias": "vynx_2fwwxbswdzac",
+  "owner": "2fWWXbSwDzACR1BbhwPifkjqudmNJmRqHGTQUrcxKUSW",
+  "aliasPda": "qukjHLiyFcVEaMNnSRaACa5SS5Bs1etSWei7kHNqzvy",
+  "ownerIndexPda": "AJZEGDseTLeoBZEdeycTGoMkGYQ2UVUVEkiEyJpgTYyV",
+  "totalLamports": "10000000",
+  "priceVersion": "1",
+  "verifiedAt": "2026-10-10T00:31:20.335Z",
+  "networkFeeLamports": "10200",
+  "feePayer": "7kbuAAJkBnxwJXpgxvBsLWhpc4SZ7rWsRh7xGDpLPLYP",
+  "treasuryPaymentLamports": "7744480",
+  "transactionVerifiedAt": "2026-10-10T00:32:06.515Z"
+}

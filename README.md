@@ -13,7 +13,7 @@ VYNX is a Solana creator-card application. The current MVP lets creators connect
 - Supabase Postgres and SSR helpers
 - Vercel deployment
 
-Supabase is the authoritative source of alias ownership for the MVP. A claim uses a devnet SOL transfer whose server-verified signature is stored with the unique wallet/alias record. The earlier Anchor prototype has been removed; it is available in Git history if on-chain alias ownership is reconsidered after the MVP.
+Supabase is the authoritative source of alias ownership for the MVP. A claim uses a devnet SOL transfer whose server-verified signature is stored with the unique wallet/alias record. The earlier Anchor prototype is available in Git history. A new on-chain VYNX alias registry is deployed and smoke-tested on devnet in [`chain/`](chain/README.md), with configurable SOL pricing; the application has not switched to it yet.
 
 ## Prerequisites
 
@@ -75,6 +75,7 @@ vynx/
 │   ├── lib/                       # Supabase and shared utilities
 │   ├── scripts/                   # Environment validation
 │   └── supabase/migrations/       # Database schema migrations
+├── chain/                         # Anchor alias registry, clients and runtime tests
 ├── docs/                          # Architecture decisions
 └── DEVROAD.MD                     # MVP delivery roadmap
 ```

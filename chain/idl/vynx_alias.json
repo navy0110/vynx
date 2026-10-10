@@ -1,0 +1,476 @@
+{
+  "address": "AxQxAgndT6ziUr3FBNafhJzF4PpniGpMX4fVRXXmh5y8",
+  "metadata": {
+    "name": "vynx_alias",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "accept_admin",
+      "discriminator": [112, 42, 45, 90, 116, 181, 13, 170],
+      "accounts": [
+        {
+          "name": "pending_admin",
+          "signer": true,
+          "relations": ["config"]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 111, 110, 102, 105, 103]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize",
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "program",
+          "address": "AxQxAgndT6ziUr3FBNafhJzF4PpniGpMX4fVRXXmh5y8"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 111, 110, 102, 105, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "admin",
+          "type": "pubkey"
+        },
+        {
+          "name": "sponsor",
+          "type": "pubkey"
+        },
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "nominate_admin",
+      "discriminator": [134, 11, 31, 244, 20, 77, 138, 121],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": ["config"]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 111, 110, 102, 105, 103]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "pending_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "register",
+      "discriminator": [211, 124, 67, 15, 211, 194, 178, 240],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "sponsor",
+          "signer": true,
+          "relations": ["config"]
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 111, 110, 102, 105, 103]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "relations": ["config"]
+        },
+        {
+          "name": "alias_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [97, 108, 105, 97, 115]
+              },
+              {
+                "kind": "arg",
+                "path": "alias"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner_index",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [111, 119, 110, 101, 114]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "alias",
+          "type": "string"
+        },
+        {
+          "name": "expected_total_lamports",
+          "type": "u64"
+        },
+        {
+          "name": "expected_price_version",
+          "type": "u64"
+        },
+        {
+          "name": "expires_at_slot",
+          "type": "u64"
+        },
+        {
+          "name": "intent_id",
+          "type": {
+            "array": ["u8", 16]
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_paused",
+      "discriminator": [91, 60, 125, 192, 176, 225, 166, 218],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": ["config"]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 111, 110, 102, 105, 103]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_registration_price_tiers",
+      "discriminator": [126, 104, 232, 178, 41, 25, 3, 77],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": ["config"]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 111, 110, 102, 105, 103]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "tiers",
+          "type": {
+            "array": ["u64", 5]
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_sponsor",
+      "discriminator": [217, 184, 101, 32, 234, 70, 199, 138],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": ["config"]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [99, 111, 110, 102, 105, 103]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "sponsor",
+          "type": "pubkey"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "discriminator": [155, 12, 170, 224, 30, 250, 204, 130]
+    }
+  ],
+  "events": [
+    {
+      "name": "AliasRegistered",
+      "discriminator": [198, 82, 178, 203, 10, 36, 36, 32]
+    },
+    {
+      "name": "PricesChanged",
+      "discriminator": [207, 40, 143, 101, 218, 79, 109, 8]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Only the configured authority may perform this operation."
+    },
+    {
+      "code": 6001,
+      "name": "InvalidAuthority",
+      "msg": "Invalid admin, sponsor or treasury address."
+    },
+    {
+      "code": 6002,
+      "name": "InvalidOwner",
+      "msg": "Use a creator wallet distinct from sponsor and treasury."
+    },
+    {
+      "code": 6003,
+      "name": "InvalidAlias",
+      "msg": "Use 1–30 canonical lowercase ASCII letters, digits or underscores."
+    },
+    {
+      "code": 6004,
+      "name": "ReservedAlias",
+      "msg": "This name is reserved."
+    },
+    {
+      "code": 6005,
+      "name": "AlreadyClaimed",
+      "msg": "The alias or wallet already has a registration."
+    },
+    {
+      "code": 6006,
+      "name": "PriceChanged",
+      "msg": "The price changed; request a new quote."
+    },
+    {
+      "code": 6007,
+      "name": "ExpiredQuote",
+      "msg": "The quote expired or its validity window is too long."
+    },
+    {
+      "code": 6008,
+      "name": "Paused",
+      "msg": "New registrations are paused."
+    },
+    {
+      "code": 6009,
+      "name": "InvalidTiers",
+      "msg": "Prices must be non-increasing and cover the registry rent deposits."
+    },
+    {
+      "code": 6010,
+      "name": "PriceBelowRent",
+      "msg": "The price cannot cover registry rent deposits."
+    },
+    {
+      "code": 6011,
+      "name": "Overflow",
+      "msg": "Arithmetic overflow."
+    }
+  ],
+  "types": [
+    {
+      "name": "AliasRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "alias",
+            "type": "string"
+          },
+          {
+            "name": "total_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "treasury_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "intent_id",
+            "type": {
+              "array": ["u8", 16]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "sponsor",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "tiers",
+            "type": {
+              "array": ["u64", 5]
+            }
+          },
+          {
+            "name": "price_version",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PricesChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_tiers",
+            "type": {
+              "array": ["u64", 5]
+            }
+          },
+          {
+            "name": "new_tiers",
+            "type": {
+              "array": ["u64", 5]
+            }
+          },
+          {
+            "name": "version",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

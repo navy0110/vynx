@@ -1,0 +1,20 @@
+[toolchain]
+anchor_version = "1.2.1"
+solana_version = "4.1.2"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+vynx_alias = "AxQxAgndT6ziUr3FBNafhJzF4PpniGpMX4fVRXXmh5y8"
+
+[programs.devnet]
+vynx_alias = "AxQxAgndT6ziUr3FBNafhJzF4PpniGpMX4fVRXXmh5y8"
+
+[provider]
+cluster = "devnet"
+wallet = ".wallets/devnet-deployer.json"
+
+[scripts]
+test = "node --test tests/*.test.cjs"

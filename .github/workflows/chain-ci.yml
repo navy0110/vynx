@@ -1,0 +1,40 @@
+name: Alias program CI
+
+on:
+  pull_request:
+    paths:
+      - 'chain/**'
+      - '.github/workflows/chain-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chain
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: chain/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: chain
+      - run: npm ci
+      - run: cargo fmt --check
+      - run: cargo test --locked
+      - name: Install pinned Agave toolchain
+        run: |
+          curl -fsSL https://release.anza.xyz/v4.1.2/install -o /tmp/agave-install.sh
+          sh /tmp/agave-install.sh --no-modify-path v4.1.2
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - run: cargo build-sbf --tools-version v1.57 --arch v3
+      - run: npm test

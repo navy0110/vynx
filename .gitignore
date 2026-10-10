@@ -50,6 +50,8 @@ front/.eslintcache
 front/components.json
 
 # -- Rust / Cargo / Anchor ----------------------------------------------------
+chain/node_modules/
+chain/.wallets/
 target/
 .anchor/
 
